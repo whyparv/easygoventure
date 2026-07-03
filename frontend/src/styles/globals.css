@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * Sage Luxury design system — boutique travel palette.
+   * Every colour is a semantic token (HSL "H S% L%"); components reference them
+   * via hsl(var(--token)), so the theme is defined entirely here.
+   *   Primary #3F6F63 · Secondary #5F8E83 · Pink #E9A7A2 · Light pink #F5D9D5
+   *   Ivory #FAFAF8 · Text #1F2A28 · Border #E8ECEA
+   */
+  :root {
+    --background: 60 17% 98%; /* Ivory #FAFAF8 */
+    --surface: 45 25% 96%; /* warm ivory canvas behind cards */
+    --foreground: 169 15% 14%; /* Text #1F2A28 */
+    --muted: 150 16% 94%;
+    --muted-foreground: 168 12% 40%;
+    --card: 0 0% 100%; /* white surfaces */
+    --card-foreground: 169 15% 14%;
+    --border: 150 10% 92%; /* #E8ECEA */
+    --border-strong: 150 10% 84%;
+    --input: 150 10% 90%;
+    --ring: 166 30% 42%;
+    --primary: 165 28% 34%; /* Primary green #3F6F63 */
+    --primary-foreground: 60 17% 98%;
+    --secondary: 166 20% 46%; /* Secondary green #5F8E83 */
+    --secondary-foreground: 60 17% 98%;
+    --pink: 4 62% 77%; /* Accent pink #E9A7A2 */
+    --pink-foreground: 169 20% 15%;
+    --pink-soft: 8 60% 90%; /* Light pink #F5D9D5 */
+    --pink-soft-foreground: 4 35% 30%;
+    --accent: 150 18% 93%;
+    --accent-foreground: 169 15% 18%;
+    --success: 132 27% 43%; /* #4F8A5B */
+    --warning: 39 67% 55%; /* #D9A441 */
+    --danger: 0 48% 57%; /* #C65B5B */
+    --info: 188 30% 44%;
+    /* Darker text variants so status badge text stays WCAG-AA on the soft tints. */
+    --success-strong: 132 34% 27%;
+    --warning-strong: 34 55% 30%;
+    --danger-strong: 0 50% 38%;
+    --info-strong: 188 42% 30%;
+    --sidebar: 165 28% 34%; /* green #3F6F63 */
+    --sidebar-foreground: 150 22% 90%;
+    --sidebar-muted: 150 20% 91%;
+    --sidebar-active: 4 62% 77%; /* accent pink */
+    --sidebar-hover: 165 24% 40%; /* ~ white 8% over green */
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 168 15% 8%; /* deep green-charcoal */
+    --surface: 168 14% 10%;
+    --foreground: 60 12% 92%; /* warm ivory */
+    --muted: 168 12% 16%;
+    --muted-foreground: 150 8% 62%;
+    --card: 168 14% 12%;
+    --card-foreground: 60 12% 92%;
+    --border: 168 10% 20%;
+    --border-strong: 168 10% 27%;
+    --input: 168 10% 22%;
+    --ring: 166 35% 55%;
+    --primary: 166 34% 55%; /* lifted sage for dark */
+    --primary-foreground: 168 20% 10%;
+    --secondary: 166 26% 52%;
+    --secondary-foreground: 168 20% 10%;
+    --pink: 4 60% 74%;
+    --pink-foreground: 168 22% 12%;
+    --pink-soft: 6 26% 30%;
+    --pink-soft-foreground: 8 55% 88%;
+    --accent: 168 12% 18%;
+    --accent-foreground: 60 12% 92%;
+    --success: 132 34% 52%;
+    --warning: 39 70% 60%;
+    --danger: 0 55% 62%;
+    --info: 188 34% 54%;
+    --success-strong: 132 40% 62%;
+    --warning-strong: 39 75% 64%;
+    --danger-strong: 0 62% 72%;
+    --info-strong: 188 45% 62%;
+    --sidebar: 168 26% 10%;
+    --sidebar-foreground: 150 16% 82%;
+    --sidebar-muted: 150 12% 62%;
+    --sidebar-active: 4 60% 74%; /* accent pink */
+    --sidebar-hover: 168 20% 16%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-surface text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full border-[3px] border-solid border-transparent bg-clip-padding;
+    background-color: hsl(var(--border-strong));
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

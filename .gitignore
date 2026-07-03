@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.vite/
+*.tsbuildinfo
+
+# Environment — ignore ALL real env files; ONLY the placeholder example is tracked.
+# (Never re-include .env.development / .env.production: they carry live secrets.)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing / coverage
+coverage/
+.nyc_output/
+
+# Editor / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+*.swp
+
+# Docker / local data stores
+docker/data/
+docker-data/
+mongodb-data/
+redis-data/
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Misc
+.cache/
+.turbo/
+tmp/
+temp/

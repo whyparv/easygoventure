@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -18,10 +19,43 @@ export class CreateServiceDto {
   @IsString()
   name!: string;
 
+  @ApiPropertyOptional({ example: 'DXB-VISA-30D', description: 'Stable business code' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'Dubai', default: 'Dubai' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  destination?: string;
+
+  @ApiPropertyOptional({ example: 'Tourist Visa', description: 'Sub-type within the category' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  serviceType?: string;
+
+  @ApiPropertyOptional({
+    example: 'Airport Transfer',
+    description: 'Groups variants under a generic requirement label',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  variantGroup?: string;
+
   @ApiPropertyOptional({ example: 'Single-entry tourist visa valid for 30 days.' })
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ example: 'VFS Global', description: 'Preferred supplier/vendor' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  supplier?: string;
 
   @ApiPropertyOptional({ type: [String], example: ['passportNumber', 'travelDate'] })
   @IsOptional()
@@ -51,11 +85,23 @@ export class CreateServiceDto {
   @Length(3, 3)
   currency?: string;
 
-  @ApiPropertyOptional({ example: 350, minimum: 0 })
+  @ApiPropertyOptional({ example: 350, minimum: 0, description: 'Legacy single price' })
   @IsOptional()
   @IsNumber()
   @Min(0)
   basePrice?: number;
+
+  @ApiPropertyOptional({ example: 300, minimum: 0, description: 'Net cost from supplier' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
+  @ApiPropertyOptional({ example: 350, minimum: 0, description: 'Default price sold to agency' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  defaultSellPrice?: number;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

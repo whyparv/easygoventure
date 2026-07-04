@@ -15,6 +15,7 @@ const FollowupsPage = lazy(() => import('@modules/followups/FollowupsPage'));
 const FulfillmentsPage = lazy(() => import('@modules/fulfillments/FulfillmentsPage'));
 const OperationsPage = lazy(() => import('@modules/operations/OperationsPage'));
 const HotelsPage = lazy(() => import('@modules/hotels/HotelsPage'));
+const ServicesPage = lazy(() => import('@modules/services/ServicesPage'));
 const AnalyticsPage = lazy(() => import('@modules/analytics/AnalyticsPage'));
 const AiPage = lazy(() => import('@modules/ai/AiPage'));
 const SettingsPage = lazy(() => import('@modules/settings/SettingsPage'));
@@ -51,6 +52,14 @@ export function AppRouter() {
           }
         />
         <Route path={ROUTES.hotels} element={<HotelsPage />} />
+        <Route
+          path={ROUTES.services}
+          element={
+            <RequirePermission permission="service.read">
+              <ServicesPage />
+            </RequirePermission>
+          }
+        />
         <Route
           path={ROUTES.analytics}
           element={

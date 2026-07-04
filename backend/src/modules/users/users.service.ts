@@ -60,6 +60,8 @@ export class UsersService {
     return {
       id: user.id as string,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       organizationId: user.organizationId ? user.organizationId.toString() : null,
       departmentId: user.departmentId ? user.departmentId.toString() : null,
       roles: authority.roleCodes,

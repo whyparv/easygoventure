@@ -1,5 +1,12 @@
 [
   {
+    "name": "Abjad Grand Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Al Nahda, Deira"
+  },
+  {
     "name": "Address Beach Resort",
     "city": "Dubai",
     "country": "UAE",
@@ -21,11 +28,74 @@
     "address": "Downtown Dubai"
   },
   {
+    "name": "Al Bustan Centre & Residence",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Deira"
+  },
+  {
+    "name": "Al Bustan Rotana Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Garhoud, near Airport"
+  },
+  {
     "name": "Al Habtoor Grand Resort",
     "city": "Dubai",
     "country": "UAE",
     "rating": 5,
     "address": "JBR"
+  },
+  {
+    "name": "Al Jaddaf Rotana Suite Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Al Jaddaf"
+  },
+  {
+    "name": "Al Khaleej Grand Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Bur Dubai"
+  },
+  {
+    "name": "Al Khoory Executive Hotel Al Wasl",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Wasl Road, Satwa"
+  },
+  {
+    "name": "Al Khoory Sky Garden Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Al Barsha, near Mall of Emirates"
+  },
+  {
+    "name": "Al Rigga Hotel Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Rigga, Deira"
+  },
+  {
+    "name": "Aloft Dubai South",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Dubai South"
+  },
+  {
+    "name": "Aloft Palm Jumeirah",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Palm Jumeirah"
   },
   {
     "name": "Anantara The Palm Dubai Resort",
@@ -35,11 +105,25 @@
     "address": "Palm Jumeirah"
   },
   {
+    "name": "Arabian Park Dubai (Edge by Rotana)",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Jaddaf"
+  },
+  {
     "name": "Armani Hotel Dubai",
     "city": "Dubai",
     "country": "UAE",
     "rating": 5,
     "address": "Burj Khalifa, Downtown"
+  },
+  {
+    "name": "Astoria Hotel Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Bur Dubai / Dubai Creek"
   },
   {
     "name": "Atlantis The Palm",
@@ -56,11 +140,81 @@
     "address": "Palm Jumeirah"
   },
   {
+    "name": "Bur Dubai Arjaan by Rotana",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Bur Dubai"
+  },
+  {
     "name": "Burj Al Arab Jumeirah",
     "city": "Dubai",
     "country": "UAE",
     "rating": 5,
     "address": "Jumeirah Beach Road"
+  },
+  {
+    "name": "Centara Mirage Beach Resort Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Deira Islands"
+  },
+  {
+    "name": "City Seasons Towers Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Bur Dubai"
+  },
+  {
+    "name": "Citymax Bur Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Bur Dubai"
+  },
+  {
+    "name": "Citymax Hotel Al Barsha",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Barsha"
+  },
+  {
+    "name": "Citymax Hotel Bur Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Bur Dubai"
+  },
+  {
+    "name": "Concorde Deira Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Al Rigga, Deira"
+  },
+  {
+    "name": "Copthorne Hotel Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Coral Dubai Al Barsha Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Barsha"
+  },
+  {
+    "name": "Coral Dubai Deira Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Deira"
   },
   {
     "name": "Crowne Plaza Dubai Marina",
@@ -70,11 +224,46 @@
     "address": "Dubai Marina"
   },
   {
+    "name": "DoubleTree by Hilton Dubai Business Bay",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Business Bay"
+  },
+  {
+    "name": "DoubleTree by Hilton Dubai Jumeirah Beach",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "JBR"
+  },
+  {
+    "name": "DoubleTree by Hilton Dubai M Square",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Mankhool, Bur Dubai"
+  },
+  {
     "name": "Dukes The Palm Dubai",
     "city": "Dubai",
     "country": "UAE",
     "rating": 5,
     "address": "Palm Jumeirah"
+  },
+  {
+    "name": "Ecos Dubai Hotel Al Furjan",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Furjan, near Marina"
+  },
+  {
+    "name": "Emirates Grand Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Opposite DIFC"
   },
   {
     "name": "Fairmont Dubai",
@@ -112,340 +301,18 @@
     "address": "Palm Jumeirah"
   },
   {
-    "name": "Four Seasons Resort Dubai",
+    "name": "Fortune Park Hotel",
     "city": "Dubai",
     "country": "UAE",
-    "rating": 5,
-    "address": "Jumeirah Beach"
-  },
-  {
-    "name": "Grand Cosmopolitan Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Grand Hyatt Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Oud Metha"
-  },
-  {
-    "name": "Grosvenor House Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Dubai Marina"
-  },
-  {
-    "name": "Hilton Dubai Palm Jumeirah",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Hyatt Regency Dubai Creek Heights",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Al Rigga, Deira"
-  },
-  {
-    "name": "InterContinental Dubai Festival City",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Festival City"
-  },
-  {
-    "name": "Jumeirah Al Naseem",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Umm Suqeim"
-  },
-  {
-    "name": "Jumeirah Beach Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Jumeirah Beach Road"
-  },
-  {
-    "name": "Jumeirah Mina A'Salam",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Madinat Jumeirah"
-  },
-  {
-    "name": "JW Marriott Marquis Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Business Bay"
-  },
-  {
-    "name": "Kempinski Hotel Mall of Emirates",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Le Royal Méridien Beach Resort",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Dubai Marina"
-  },
-  {
-    "name": "Mandarin Oriental Jumeirah",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Jumeirah"
-  },
-  {
-    "name": "Movenpick Jumeirah Lakes Towers",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "JLT"
-  },
-  {
-    "name": "Nikki Beach Resort & Spa Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Pearl Jumeirah"
-  },
-  {
-    "name": "One&Only One Za'abeel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Za'abeel, near DWTC"
-  },
-  {
-    "name": "One&Only Royal Mirage",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Al Sufouh, Jumeirah"
-  },
-  {
-    "name": "Palace Dubai Creek Harbour",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Creek Harbour"
-  },
-  {
-    "name": "Palazzo Versace Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Al Jaddaf"
-  },
-  {
-    "name": "Raffles Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Wafi, Oud Metha"
-  },
-  {
-    "name": "Raffles The Palm Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Shangri-La Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "Sofitel Dubai The Obelisk",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Wafi, Umm Hurair"
-  },
-  {
-    "name": "Sofitel Dubai The Palm",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "St. Regis Downtown Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Downtown Dubai"
-  },
-  {
-    "name": "St. Regis Dubai, The Palm",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Taj Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Business Bay"
-  },
-  {
-    "name": "The Lana – Dorchester Collection",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Business Bay"
-  },
-  {
-    "name": "The Ritz-Carlton Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "JBR"
-  },
-  {
-    "name": "Voco Bonnington Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "JLT"
-  },
-  {
-    "name": "W Dubai – The Palm",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Waldorf Astoria Dubai DIFC",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "DIFC"
-  },
-  {
-    "name": "Waldorf Astoria Dubai Palm Jumeirah",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 5,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Abjad Grand Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Al Nahda, Deira"
-  },
-  {
-    "name": "Al Bustan Centre & Residence",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Deira"
-  },
-  {
-    "name": "Al Jaddaf Rotana Suite Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Al Jaddaf"
-  },
-  {
-    "name": "Al Khoory Sky Garden Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Al Barsha, near Mall of Emirates"
-  },
-  {
-    "name": "Aloft Dubai South",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Dubai South"
-  },
-  {
-    "name": "Aloft Palm Jumeirah",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Bur Dubai Arjaan by Rotana",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
+    "rating": 3,
     "address": "Bur Dubai"
   },
   {
-    "name": "Centara Mirage Beach Resort Dubai",
+    "name": "Fortune Pearl Hotel",
     "city": "Dubai",
     "country": "UAE",
-    "rating": 4,
-    "address": "Deira Islands"
-  },
-  {
-    "name": "City Seasons Towers Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
+    "rating": 3,
     "address": "Bur Dubai"
-  },
-  {
-    "name": "Concorde Deira Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Al Rigga, Deira"
-  },
-  {
-    "name": "Copthorne Hotel Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "DoubleTree by Hilton Dubai Business Bay",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Business Bay"
-  },
-  {
-    "name": "DoubleTree by Hilton Dubai Jumeirah Beach",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "JBR"
-  },
-  {
-    "name": "DoubleTree by Hilton Dubai M Square",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Mankhool, Bur Dubai"
   },
   {
     "name": "Four Points by Sheraton Sheikh Zayed Rd",
@@ -453,6 +320,13 @@
     "country": "UAE",
     "rating": 4,
     "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Four Seasons Resort Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Jumeirah Beach"
   },
   {
     "name": "Gevora Hotel Dubai",
@@ -469,6 +343,20 @@
     "address": "Bur Dubai"
   },
   {
+    "name": "Golden Tulip Al Barsha",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Barsha"
+  },
+  {
+    "name": "Grand Cosmopolitan Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Al Barsha"
+  },
+  {
     "name": "Grand Excelsior Hotel Al Barsha",
     "city": "Dubai",
     "country": "UAE",
@@ -483,6 +371,20 @@
     "address": "Bur Dubai"
   },
   {
+    "name": "Grand Excelsior Hotel Deira",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Deira"
+  },
+  {
+    "name": "Grand Hyatt Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Oud Metha"
+  },
+  {
     "name": "Grand Millennium Dubai",
     "city": "Dubai",
     "country": "UAE",
@@ -490,11 +392,53 @@
     "address": "Barsha Heights"
   },
   {
+    "name": "Grosvenor House Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Dubai Marina"
+  },
+  {
+    "name": "GSS Palace Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Bur Dubai"
+  },
+  {
+    "name": "Hampton by Hilton Dubai Airport",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Qusais"
+  },
+  {
+    "name": "Hampton by Hilton Dubai Al Barsha",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Al Barsha"
+  },
+  {
     "name": "Hawthorn Suites by Wyndham JBR",
     "city": "Dubai",
     "country": "UAE",
     "rating": 4,
     "address": "JBR"
+  },
+  {
+    "name": "Hilton Dubai Creek Residence",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Deira"
+  },
+  {
+    "name": "Hilton Dubai Palm Jumeirah",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Palm Jumeirah"
   },
   {
     "name": "Hilton Garden Inn Dubai Al Mina",
@@ -509,6 +453,13 @@
     "country": "UAE",
     "rating": 4,
     "address": "Al Barsha South"
+  },
+  {
+    "name": "Holiday Inn Express Dubai Airport",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 3,
+    "address": "Garhoud"
   },
   {
     "name": "Holiday Inn Express Dubai Safa Park",
@@ -539,319 +490,11 @@
     "address": "Jumeirah"
   },
   {
-    "name": "Jannah Burj Al Sarab Hotel",
+    "name": "Hyatt Regency Dubai Creek Heights",
     "city": "Dubai",
     "country": "UAE",
-    "rating": 4,
-    "address": "Bur Dubai"
-  },
-  {
-    "name": "Jannah Marina Hotel Apartments",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Dubai Marina"
-  },
-  {
-    "name": "Leva Hotel Mazaya Centre",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "Millennium Place Barsha Heights",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Barsha Heights (Tecom)"
-  },
-  {
-    "name": "Millennium Place Marina",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Dubai Marina"
-  },
-  {
-    "name": "Movenpick Grand Al Bustan",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Garhoud"
-  },
-  {
-    "name": "Movenpick Hotel Apartments Downtown",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Downtown Dubai"
-  },
-  {
-    "name": "NH Collection Dubai The Palm",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Number One Tower Suites",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "Paramount Hotel Midtown",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Business Bay"
-  },
-  {
-    "name": "Queen Elizabeth 2 Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Mina Rashid Port"
-  },
-  {
-    "name": "Radisson Beach Resort Palm Jumeirah",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Palm Jumeirah"
-  },
-  {
-    "name": "Radisson Blu Hotel Dubai Canal View",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Business Bay"
-  },
-  {
-    "name": "Radisson Blu Hotel Dubai Deira Creek",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Deira"
-  },
-  {
-    "name": "Ramada by Wyndham Downtown Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Downtown Dubai"
-  },
-  {
-    "name": "Ramada Plaza Jumeirah Beach",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "JBR"
-  },
-  {
-    "name": "Riu Dubai Beach Resort",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Deira Islands"
-  },
-  {
-    "name": "Rose Rayhaan by Rotana",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "Sheraton Grand Hotel Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "Sheraton Jumeirah Beach Resort",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "JBR"
-  },
-  {
-    "name": "The First Collection Business Bay",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Business Bay"
-  },
-  {
-    "name": "The First Collection JVC",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Jumeirah Village Circle"
-  },
-  {
-    "name": "Towers Rotana Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Sheikh Zayed Road"
-  },
-  {
-    "name": "Tulip Al Barsha Hotel Apartment",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Wyndham Dubai Deira",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 4,
-    "address": "Deira"
-  },
-  {
-    "name": "Al Bustan Rotana Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Garhoud, near Airport"
-  },
-  {
-    "name": "Al Khaleej Grand Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Bur Dubai"
-  },
-  {
-    "name": "Al Khoory Executive Hotel Al Wasl",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Wasl Road, Satwa"
-  },
-  {
-    "name": "Al Rigga Hotel Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
+    "rating": 5,
     "address": "Al Rigga, Deira"
-  },
-  {
-    "name": "Arabian Park Dubai (Edge by Rotana)",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Jaddaf"
-  },
-  {
-    "name": "Astoria Hotel Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Bur Dubai / Dubai Creek"
-  },
-  {
-    "name": "Citymax Hotel Al Barsha",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Citymax Hotel Bur Dubai",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Bur Dubai"
-  },
-  {
-    "name": "Coral Dubai Al Barsha Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Coral Dubai Deira Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Deira"
-  },
-  {
-    "name": "Ecos Dubai Hotel Al Furjan",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Furjan, near Marina"
-  },
-  {
-    "name": "Emirates Grand Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Opposite DIFC"
-  },
-  {
-    "name": "Fortune Park Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Bur Dubai"
-  },
-  {
-    "name": "Fortune Pearl Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Bur Dubai"
-  },
-  {
-    "name": "Golden Tulip Al Barsha",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Grand Excelsior Hotel Deira",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Deira"
-  },
-  {
-    "name": "GSS Palace Hotel",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Bur Dubai"
-  },
-  {
-    "name": "Hampton by Hilton Dubai Airport",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Qusais"
-  },
-  {
-    "name": "Hampton by Hilton Dubai Al Barsha",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Al Barsha"
-  },
-  {
-    "name": "Holiday Inn Express Dubai Airport",
-    "city": "Dubai",
-    "country": "UAE",
-    "rating": 3,
-    "address": "Garhoud"
   },
   {
     "name": "ibis Deira City Centre",
@@ -896,6 +539,13 @@
     "address": "Jumeirah"
   },
   {
+    "name": "InterContinental Dubai Festival City",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Festival City"
+  },
+  {
     "name": "J5 Hotels Port Saeed",
     "city": "Dubai",
     "country": "UAE",
@@ -910,6 +560,55 @@
     "address": "Al Muraqqabat, Deira"
   },
   {
+    "name": "Jannah Burj Al Sarab Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Bur Dubai"
+  },
+  {
+    "name": "Jannah Marina Hotel Apartments",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Dubai Marina"
+  },
+  {
+    "name": "Jumeirah Al Naseem",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Umm Suqeim"
+  },
+  {
+    "name": "Jumeirah Beach Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Jumeirah Beach Road"
+  },
+  {
+    "name": "Jumeirah Mina A'Salam",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Madinat Jumeirah"
+  },
+  {
+    "name": "JW Marriott Marquis Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Business Bay"
+  },
+  {
+    "name": "Kempinski Hotel Mall of Emirates",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Al Barsha"
+  },
+  {
     "name": "Lavender Hotel Dubai",
     "city": "Dubai",
     "country": "UAE",
@@ -917,11 +616,130 @@
     "address": "Al Rigga, Deira"
   },
   {
+    "name": "Le Royal Méridien Beach Resort",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Dubai Marina"
+  },
+  {
+    "name": "Leva Hotel Mazaya Centre",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Mandarin Oriental Jumeirah",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Jumeirah"
+  },
+  {
+    "name": "Millennium Place Barsha Heights",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Barsha Heights (Tecom)"
+  },
+  {
+    "name": "Millennium Place Dubai Marina",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Dubai Marina"
+  },
+  {
+    "name": "Millennium Place Marina",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Dubai Marina"
+  },
+  {
+    "name": "Movenpick Grand Al Bustan",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Garhoud"
+  },
+  {
+    "name": "Movenpick Hotel Apartments Downtown",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Downtown Dubai"
+  },
+  {
+    "name": "Movenpick Jumeirah Lakes Towers",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "JLT"
+  },
+  {
+    "name": "NH Collection Dubai The Palm",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Palm Jumeirah"
+  },
+  {
+    "name": "Nikki Beach Resort & Spa Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Pearl Jumeirah"
+  },
+  {
+    "name": "Number One Tower Suites",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "One&Only One Za'abeel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Za'abeel, near DWTC"
+  },
+  {
+    "name": "One&Only Royal Mirage",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Al Sufouh, Jumeirah"
+  },
+  {
+    "name": "Palace Dubai Creek Harbour",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Creek Harbour"
+  },
+  {
+    "name": "Palazzo Versace Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Al Jaddaf"
+  },
+  {
     "name": "Panorama Grand Hotel Dubai",
     "city": "Dubai",
     "country": "UAE",
     "rating": 3,
     "address": "Khalid Bin Waleed Rd, Bur Dubai"
+  },
+  {
+    "name": "Paramount Hotel Midtown",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Business Bay"
   },
   {
     "name": "Premier Inn Dubai Al Jaddaf",
@@ -959,6 +777,69 @@
     "address": "Silicon Oasis"
   },
   {
+    "name": "Pullman Dubai Creek City Centre",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Deira"
+  },
+  {
+    "name": "Queen Elizabeth 2 Hotel",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Mina Rashid Port"
+  },
+  {
+    "name": "Radisson Beach Resort Palm Jumeirah",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Palm Jumeirah"
+  },
+  {
+    "name": "Radisson Blu Hotel Dubai Canal View",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Business Bay"
+  },
+  {
+    "name": "Radisson Blu Hotel Dubai Deira Creek",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Deira"
+  },
+  {
+    "name": "Raffles Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Wafi, Oud Metha"
+  },
+  {
+    "name": "Raffles The Palm Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Palm Jumeirah"
+  },
+  {
+    "name": "Ramada by Wyndham Downtown Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Downtown Dubai"
+  },
+  {
+    "name": "Ramada Plaza Jumeirah Beach",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "JBR"
+  },
+  {
     "name": "Ramee Guest Line Hotel",
     "city": "Dubai",
     "country": "UAE",
@@ -973,10 +854,24 @@
     "address": "Bur Dubai"
   },
   {
+    "name": "Riu Dubai Beach Resort",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Deira Islands"
+  },
+  {
     "name": "Rose Executive Hotel DWTC",
     "city": "Dubai",
     "country": "UAE",
     "rating": 3,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Rose Rayhaan by Rotana",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
     "address": "Sheikh Zayed Road"
   },
   {
@@ -1029,10 +924,108 @@
     "address": "Barsha Heights (Tecom)"
   },
   {
+    "name": "Shangri-La Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Sheraton Grand Hotel Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Sheraton Jumeirah Beach Resort",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "JBR"
+  },
+  {
+    "name": "Sofitel Dubai The Obelisk",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Wafi, Umm Hurair"
+  },
+  {
+    "name": "Sofitel Dubai The Palm",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Palm Jumeirah"
+  },
+  {
+    "name": "St. Regis Downtown Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Downtown Dubai"
+  },
+  {
+    "name": "St. Regis Dubai, The Palm",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Palm Jumeirah"
+  },
+  {
     "name": "Studio M Hotel Al Barsha",
     "city": "Dubai",
     "country": "UAE",
     "rating": 3,
+    "address": "Al Barsha"
+  },
+  {
+    "name": "Taj Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Business Bay"
+  },
+  {
+    "name": "The First Collection Business Bay",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Business Bay"
+  },
+  {
+    "name": "The First Collection JVC",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Jumeirah Village Circle"
+  },
+  {
+    "name": "The Lana – Dorchester Collection",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Business Bay"
+  },
+  {
+    "name": "The Ritz-Carlton Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "JBR"
+  },
+  {
+    "name": "Towers Rotana Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Sheikh Zayed Road"
+  },
+  {
+    "name": "Tulip Al Barsha Hotel Apartment",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
     "address": "Al Barsha"
   },
   {
@@ -1055,5 +1048,40 @@
     "country": "UAE",
     "rating": 3,
     "address": "Near Grand Mosque, Bur Dubai"
+  },
+  {
+    "name": "Voco Bonnington Dubai",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "JLT"
+  },
+  {
+    "name": "W Dubai – The Palm",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Palm Jumeirah"
+  },
+  {
+    "name": "Waldorf Astoria Dubai DIFC",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "DIFC"
+  },
+  {
+    "name": "Waldorf Astoria Dubai Palm Jumeirah",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 5,
+    "address": "Palm Jumeirah"
+  },
+  {
+    "name": "Wyndham Dubai Deira",
+    "city": "Dubai",
+    "country": "UAE",
+    "rating": 4,
+    "address": "Deira"
   }
 ]

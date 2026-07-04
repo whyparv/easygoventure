@@ -20,6 +20,7 @@ export function TabsTrigger({ className, ...props }: TabsPrimitive.TabsTriggerPr
     <TabsPrimitive.Trigger
       className={cn(
         'relative -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none data-[state=active]:border-primary data-[state=active]:text-foreground',
+        'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted-foreground',
         className,
       )}
       {...props}

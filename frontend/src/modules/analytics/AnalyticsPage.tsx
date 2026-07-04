@@ -46,7 +46,7 @@ export default function AnalyticsPage() {
     return Array.from(map.entries()).map(([type, value]) => ({ type: titleCase(type), value }));
   }, [proposals]);
 
-  const won = leads.filter((l) => l.status === 'ACCEPTED' || l.status === 'COMPLETED').length;
+  const won = leads.filter((l) => l.status === 'CONFIRMED' || l.status === 'COMPLETED').length;
   const conversion = leads.length ? Math.round((won / leads.length) * 100) : 0;
   const acceptedValue = proposals.filter((p) => p.status === 'ACCEPTED').reduce((s, p) => s + (p.amount ?? 0), 0);
 

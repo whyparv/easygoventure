@@ -15,9 +15,10 @@ import {
   ArrowRight,
   CheckCircle2,
   CircleDollarSign,
+  ConciergeBell,
   FileText,
   PhoneCall,
-  Sparkles,
+  Sparkle,
   TrendingUp,
   UserPlus,
 } from 'lucide-react';
@@ -33,7 +34,7 @@ import { Skeleton } from '@shared/components/ui/skeleton';
 import { useLeads } from '@shared/queries/leads.queries';
 import { useProposals } from '@shared/queries/proposals.queries';
 import { useFollowups } from '@shared/queries/followups.queries';
-import { useUiStore } from '@shared/stores/ui.store';
+import { useServices } from '@shared/queries/services.queries';
 import { LeadStatus } from '@shared/types/domain';
 import { formatCurrency, formatRelative, titleCase } from '@shared/lib/format';
 import { leadTone } from '@shared/lib/status';
@@ -41,25 +42,42 @@ import { ROUTES } from '@app/config/routes';
 
 const FUNNEL_ORDER: LeadStatus[] = [
   'NEW',
-  'PROPOSAL_SENT',
-  'AWAITING_RESPONSE',
+  'QUOTE_SENT',
   'FOLLOW_UP',
-  'ACCEPTED',
+  'CONFIRMED',
+  'ARRANGEMENTS',
+  'VOUCHER_SENT',
   'COMPLETED',
 ];
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const setAiOpen = useUiStore((s) => s.setAiOpen);
 
   const leadsQ = useLeads({ limit: 100, sortBy: 'createdAt', sortOrder: 'desc' });
   const proposalsQ = useProposals({ limit: 100 });
   const followupsQ = useFollowups({ limit: 100, completed: 'false' });
+  // limit is capped at 100 by the API; meta.total still reflects the full count.
+  const servicesQ = useServices({ limit: 100, sortBy: 'name', sortOrder: 'asc' });
 
   const leads = useMemo(() => leadsQ.data?.items ?? [], [leadsQ.data]);
   const proposals = useMemo(() => proposalsQ.data?.items ?? [], [proposalsQ.data]);
   const followups = useMemo(() => followupsQ.data?.items ?? [], [followupsQ.data]);
+  const services = useMemo(() => servicesQ.data?.items ?? [], [servicesQ.data]);
   const loading = leadsQ.isLoading || proposalsQ.isLoading || followupsQ.isLoading;
+
+  const serviceStats = useMemo(() => {
+    const total = servicesQ.data?.meta.total ?? services.length;
+    const active = services.filter((s) => s.isActive).length;
+    // Most-used service name, tallied across every lead's attached service snapshots.
+    const tally = new Map<string, number>();
+    for (const l of leads) {
+      for (const s of l.serviceItems ?? []) {
+        tally.set(s.serviceName, (tally.get(s.serviceName) ?? 0) + 1);
+      }
+    }
+    const top = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+    return { total, active, topName: top?.[0], topCount: top?.[1] ?? 0 };
+  }, [services, servicesQ.data, leads]);
 
   const metrics = useMemo(() => {
     const todayLeads = leads.filter((l) => isToday(parseISO(l.createdAt))).length;
@@ -107,11 +125,6 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Operational overview of your travel pipeline"
         breadcrumb={[{ label: 'Home' }, { label: 'Dashboard' }]}
-        actions={
-          <Button variant="secondary" onClick={() => setAiOpen(true)}>
-            <Sparkles className="size-4" /> AI Assistant
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
@@ -126,6 +139,25 @@ export default function DashboardPage() {
           icon={CircleDollarSign}
           hint="accepted proposals"
           loading={loading}
+        />
+        <MetricCard
+          label="Total Services"
+          value={serviceStats.total}
+          icon={ConciergeBell}
+          loading={servicesQ.isLoading}
+        />
+        <MetricCard
+          label="Active Services"
+          value={serviceStats.active}
+          icon={CheckCircle2}
+          loading={servicesQ.isLoading}
+        />
+        <MetricCard
+          label="Most Used Service"
+          value={serviceStats.topName ?? '—'}
+          icon={Sparkle}
+          hint={serviceStats.topName ? `${serviceStats.topCount} lead${serviceStats.topCount === 1 ? '' : 's'}` : undefined}
+          loading={loading || servicesQ.isLoading}
         />
       </div>
 

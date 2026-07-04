@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CalendarClock,
+  BedDouble,
   ClipboardList,
-  FileText,
+  Gauge,
   LayoutDashboard,
+  Receipt,
   Search,
   Sparkles,
   Users,
@@ -50,9 +51,10 @@ export function CommandPalette() {
     () => [
       { id: 'nav-dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: () => navigate(ROUTES.dashboard) },
       { id: 'nav-leads', label: 'Go to Leads', icon: Users, run: () => navigate(ROUTES.leads) },
-      { id: 'nav-proposals', label: 'Go to Proposals', icon: FileText, run: () => navigate(ROUTES.proposals) },
-      { id: 'nav-followups', label: 'Go to Follow Ups', icon: CalendarClock, run: () => navigate(ROUTES.followups) },
+      { id: 'nav-operations', label: 'Go to Operations', icon: Gauge, run: () => navigate(ROUTES.operations) },
       { id: 'nav-fulfillments', label: 'Go to Fulfillments', icon: ClipboardList, run: () => navigate(ROUTES.fulfillments) },
+      { id: 'nav-hotels', label: 'Go to Hotel Catalog', icon: BedDouble, run: () => navigate(ROUTES.hotels) },
+      { id: 'nav-reports', label: 'Go to Reports', icon: Receipt, run: () => navigate(ROUTES.analytics) },
       { id: 'nav-ai', label: 'Open AI Assistant', icon: Sparkles, run: () => useUiStore.getState().setAiOpen(true) },
     ],
     [navigate],

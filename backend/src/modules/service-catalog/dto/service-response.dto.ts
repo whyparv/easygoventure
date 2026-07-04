@@ -12,8 +12,23 @@ export class ServiceResponseDto extends BaseEntity {
   @ApiProperty()
   name!: string;
 
+  @ApiPropertyOptional({ example: 'DXB-VISA-30D' })
+  code?: string;
+
+  @ApiProperty({ example: 'Dubai' })
+  destination!: string;
+
+  @ApiPropertyOptional({ example: 'Tourist Visa' })
+  serviceType?: string;
+
+  @ApiPropertyOptional({ example: 'Airport Transfer', description: 'Variant group label' })
+  variantGroup?: string;
+
   @ApiPropertyOptional()
   description?: string;
+
+  @ApiPropertyOptional({ example: 'VFS Global' })
+  supplier?: string;
 
   @ApiProperty({ type: [String] })
   requiredFields!: string[];
@@ -32,6 +47,12 @@ export class ServiceResponseDto extends BaseEntity {
 
   @ApiPropertyOptional({ example: 350 })
   basePrice?: number;
+
+  @ApiPropertyOptional({ example: 300 })
+  costPrice?: number;
+
+  @ApiPropertyOptional({ example: 350 })
+  defaultSellPrice?: number;
 
   @ApiProperty({ default: true })
   isActive!: boolean;

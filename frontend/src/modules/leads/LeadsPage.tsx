@@ -17,6 +17,7 @@ import { formatDate, formatRelative, titleCase } from '@shared/lib/format';
 import { leadTone } from '@shared/lib/status';
 import { LeadCreateDialog } from './LeadCreateDialog';
 import { LeadDrawer } from './LeadDrawer';
+import { leadDisplayName } from './lead-display';
 
 const statusOptions = [{ label: 'All statuses', value: '' }, ...LeadStatus.map((s) => ({ label: titleCase(s), value: s }))];
 const typeOptions = [{ label: 'All types', value: '' }, ...InquiryType.map((s) => ({ label: titleCase(s), value: s }))];
@@ -77,9 +78,9 @@ export default function LeadsPage() {
       sortable: true,
       render: (lead) => (
         <div className="flex items-center gap-2.5">
-          <Avatar name={lead.name} size="sm" />
+          <Avatar name={leadDisplayName(lead)} size="sm" />
           <div className="min-w-0">
-            <p className="truncate font-medium text-foreground">{lead.name}</p>
+            <p className="truncate font-medium text-foreground">{leadDisplayName(lead)}</p>
             {lead.email && <p className="truncate text-xs text-muted-foreground">{lead.email}</p>}
           </div>
         </div>

@@ -1,16 +1,11 @@
 import {
   BedDouble,
-  Building2,
-  CalendarClock,
   ClipboardList,
-  Contact,
-  FileText,
+  ConciergeBell,
   Gauge,
-  Inbox,
   LayoutDashboard,
   Receipt,
   Settings,
-  Sparkles,
   Ticket,
   Users,
   type LucideIcon,
@@ -32,20 +27,14 @@ export interface NavSection {
   items: NavItem[];
 }
 
+// EasyGo Venture is a focused travel-inquiry workflow, not a generic CRM.
+// Inquiries / Proposals / Follow Ups are no longer separate modules — they are
+// stages of the single Leads pipeline.
 export const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Dashboard', to: ROUTES.dashboard, icon: LayoutDashboard, enabled: true },
-      { label: 'AI Workspace', to: ROUTES.ai, icon: Sparkles, enabled: true },
-    ],
-  },
-  {
-    title: 'Pipeline',
-    items: [
-      { label: 'Inquiries', to: ROUTES.inquiries, icon: Inbox, enabled: true },
       { label: 'Leads', to: ROUTES.leads, icon: Users, enabled: true },
-      { label: 'Proposals', to: ROUTES.proposals, icon: FileText, enabled: true },
-      { label: 'Follow Ups', to: ROUTES.followups, icon: CalendarClock, enabled: true },
     ],
   },
   {
@@ -54,14 +43,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Operations', to: ROUTES.operations, icon: Gauge, enabled: true, permission: 'operations.read' },
       { label: 'Fulfillments', to: ROUTES.fulfillments, icon: ClipboardList, enabled: true },
       { label: 'Hotel Catalog', to: ROUTES.hotels, icon: BedDouble, enabled: true },
+      { label: 'Services', to: ROUTES.services, icon: ConciergeBell, enabled: true, permission: 'service.read' },
       { label: 'Vouchers', to: ROUTES.vouchers, icon: Ticket, enabled: false },
-    ],
-  },
-  {
-    title: 'CRM',
-    items: [
-      { label: 'Agencies', to: ROUTES.agencies, icon: Building2, enabled: false },
-      { label: 'Contacts', to: ROUTES.contacts, icon: Contact, enabled: false },
     ],
   },
   {

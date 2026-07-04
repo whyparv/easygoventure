@@ -37,6 +37,57 @@ export class LeadResponseDto {
   @ApiPropertyOptional()
   rawInquiry?: string;
 
+  @ApiPropertyOptional()
+  requirementsNote?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  requestedServices?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  requestedHotels?: string[];
+
+  @ApiPropertyOptional()
+  destination?: string;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  travelDate?: string;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  returnDate?: string;
+
+  @ApiPropertyOptional()
+  adults?: number;
+
+  @ApiPropertyOptional()
+  children?: number;
+
+  @ApiPropertyOptional()
+  rooms?: number;
+
+  @ApiPropertyOptional()
+  nights?: number;
+
+  @ApiPropertyOptional({ type: [String] })
+  services?: string[];
+
+  @ApiPropertyOptional({ type: Object, isArray: true })
+  serviceItems?: Record<string, unknown>[];
+
+  @ApiPropertyOptional({ type: Object, isArray: true })
+  hotelOptions?: Record<string, unknown>[];
+
+  @ApiPropertyOptional()
+  markup?: number;
+
+  @ApiPropertyOptional()
+  currency?: string;
+
+  @ApiPropertyOptional()
+  quoteValidityHours?: number;
+
+  @ApiPropertyOptional()
+  preparedBy?: string;
+
   @ApiProperty({ default: false })
   isDeleted!: boolean;
 

@@ -13,6 +13,7 @@ export const ROUTES = {
   fulfillments: '/fulfillments',
   operations: '/operations',
   hotels: '/hotels',
+  services: '/services',
   bookings: '/bookings',
   vouchers: '/vouchers',
   analytics: '/analytics',

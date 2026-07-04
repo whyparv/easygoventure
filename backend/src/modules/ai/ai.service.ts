@@ -14,12 +14,24 @@ import { NextActionDto } from './dto/next-action.dto';
 
 export interface ParsedInquiry {
   customerName: string | null;
+  /** The travel agency / company the enquiry comes from. */
+  agencyName: string | null;
   customerPhone: string | null;
   customerEmail: string | null;
   destination: string | null;
   service: string | null;
+  /** Requested services as free-form labels (Visa, Airport Transfer, Desert Safari…). */
+  services: string[];
+  /** Hotels the client named in the inquiry. */
+  requestedHotels: string[];
+  /** AI-authored "CLIENT REQUIREMENTS" brief preserving the original intent. */
+  requirementsNote: string | null;
   travelers: number | null;
+  adults: number | null;
+  children: number | null;
+  rooms: number | null;
   travelDate: string | null;
+  returnDate: string | null;
   budget: number | null;
   /** 0–100 extraction confidence for the whole enquiry. */
   confidence: number;
@@ -64,12 +76,13 @@ const NEXT_ACTION_TYPES: NextActionType[] = [
 ];
 const LEAD_STATUSES = [
   'NEW',
-  'PROPOSAL_SENT',
-  'AWAITING_RESPONSE',
+  'QUOTE_SENT',
   'FOLLOW_UP',
-  'ACCEPTED',
-  'REJECTED',
+  'CONFIRMED',
+  'ARRANGEMENTS',
+  'VOUCHER_SENT',
   'COMPLETED',
+  'REJECTED',
 ];
 const PROPOSAL_TYPES = ['VISA', 'TRAVEL_PACKAGE', 'HOTEL', 'CUSTOM'];
 
@@ -149,18 +162,38 @@ export class AIService {
           `${DMC_ASSISTANT_PERSONA} Today's date is ${this.today()}. Extract structured ` +
           'data from a raw travel enquiry (which may be a pasted WhatsApp chat, an email, or ' +
           'free text). Respond ONLY with a JSON object with keys: ' +
-          'customerName (the enquirer\'s full name as a string | null), ' +
+          'customerName (the enquirer\'s / contact person\'s full name as a string | null), ' +
+          'agencyName (the travel agency or company name, if mentioned | null), ' +
           'customerPhone (phone/WhatsApp number, digits and + only | null), ' +
           'customerEmail (email address | null), ' +
-          'destination (city or country as a string, e.g. "Dubai" | null), service (one of ' +
-          'Visa, Travel Package, Hotel, Transfer, Custom — map tours/activities/sightseeing/' +
-          'desert safari to Travel Package, and anything unclear to Custom, or null), ' +
+          'destination (city or country as a string, e.g. "Dubai" | null), service (the single ' +
+          'primary service, one of Visa, Travel Package, Hotel, Transfer, Custom — map tours/' +
+          'activities/sightseeing/desert safari to Travel Package, and anything unclear to Custom, ' +
+          'or null), services (an ARRAY capturing EVERY service, activity or inclusion the client ' +
+          'explicitly lists — one entry per listed item, preserving their wording, e.g. ' +
+          '["Airport Transfer","UAE Visa","Daily Breakfast","Accommodation","Desert Safari with Dinner",' +
+          '"Dolphin Show at Dubai Dolphinarium"]. Include named inclusions like "Daily Breakfast" and ' +
+          '"Accommodation". Do not merge, summarise or omit lines; empty array if none stated), ' +
+          'adults (number of adults as an integer | null), children (number of children | null), ' +
+          'rooms (number of hotel rooms | null), ' +
           'travelers (total head count as an integer, summing adults and children | null), ' +
           'travelDate (ISO date YYYY-MM-DD | null; when a date has no year use the next future ' +
           'occurrence, never a past date, and pick the start/departure date for a range), ' +
+          'returnDate (ISO date YYYY-MM-DD | null; the end/return date of a range if given), ' +
           'budget (total budget as a number in the stated or implied currency, digits only | null), ' +
+          'requestedHotels (an ARRAY of hotel names the client explicitly named, e.g. ' +
+          '["Al Khoory Sky Garden","Hilton Dubai Creek Residence"] — empty array if none), ' +
+          'requirementsNote (a plain-text "CLIENT REQUIREMENTS" brief that preserves the ' +
+          'operational intent for the sales staff. Use EXACTLY this structure with these ' +
+          'headings, omitting a section only if it has no data:\\n' +
+          'CLIENT REQUIREMENTS\\n\\nPassenger:\\n<name or "Not specified">\\n\\n' +
+          'Travel Dates:\\n<e.g. 15 Jun - 19 Jun or "Not specified">\\n\\n' +
+          'Requested Hotels:\\n- <hotel> (one per line, or "None specified")\\n\\n' +
+          'Requested Services:\\n\\u2713 <service> (one per line prefixed with a check mark)\\n\\n' +
+          'Notes:\\n<one short sentence interpreting what the client wants>. ' +
+          'Base it ONLY on the enquiry — never invent hotels, services or dates), ' +
           'confidence (integer 0-100 for how confident you are in the overall extraction). ' +
-          'Do not invent values — use null when the enquiry does not state something.',
+          'Do not invent values — use null (or [] for arrays) when the enquiry does not state something.',
       },
       { role: 'user', content: dto.text },
     ];
@@ -168,32 +201,49 @@ export class AIService {
     const raw = await this.provider.chat(messages, { json: true, temperature: 0 });
     const parsed = this.parseJson<Partial<ParsedInquiry>>(raw);
 
+    const adults = this.asNumber(parsed.adults);
+    const children = this.asNumber(parsed.children);
+    const travelers =
+      this.asNumber(parsed.travelers) ??
+      (adults !== null || children !== null ? (adults ?? 0) + (children ?? 0) : null);
+
     const result = {
       customerName: this.asString(parsed.customerName),
+      agencyName: this.asString(parsed.agencyName),
       customerPhone: this.asString(parsed.customerPhone),
       customerEmail: this.asString(parsed.customerEmail),
       destination: this.asString(parsed.destination),
       service: this.asString(parsed.service),
-      travelers: this.asNumber(parsed.travelers),
+      services: this.asStringArray(parsed.services),
+      requestedHotels: this.asStringArray(parsed.requestedHotels),
+      requirementsNote: this.asString(parsed.requirementsNote),
+      travelers,
+      adults,
+      children,
+      rooms: this.asNumber(parsed.rooms),
       travelDate: this.asString(parsed.travelDate),
+      returnDate: this.asString(parsed.returnDate),
       budget: this.asNumber(parsed.budget),
     };
     // Prefer the model's self-reported confidence; otherwise derive it from how
-    // many fields were actually extracted (so the UI always has a signal).
+    // many scalar fields were actually extracted (so the UI always has a signal).
     const reported = this.asNumber(parsed.confidence);
-    const filled = Object.values(result).filter((v) => v !== null).length;
+    const scalars = Object.entries(result).filter(
+      ([k]) => k !== 'services' && k !== 'requestedHotels' && k !== 'requirementsNote',
+    );
+    const filled = scalars.filter(([, v]) => v !== null).length;
     const confidence =
-      reported !== null ? Math.max(0, Math.min(100, reported)) : Math.round((filled / 8) * 100);
+      reported !== null
+        ? Math.max(0, Math.min(100, reported))
+        : Math.round((filled / scalars.length) * 100);
 
     // Surface the important fields we could NOT extract so the agent can chase them.
     const IMPORTANT: Array<[keyof typeof result, string]> = [
-      ['customerName', 'Name'],
+      ['customerName', 'Contact Person'],
+      ['agencyName', 'Agency'],
       ['customerPhone', 'Phone'],
-      ['customerEmail', 'Email'],
       ['destination', 'Destination'],
       ['travelDate', 'Travel Date'],
-      ['travelers', 'Travellers'],
-      ['budget', 'Budget'],
     ];
     const missing = IMPORTANT.filter(([k]) => result[k] === null).map(([, label]) => label);
 
@@ -302,8 +352,8 @@ export class AIService {
           '"action": { "type": one of "create_followup" | "add_note" | "update_status" | ' +
           '"create_proposal" | "none", ...fields } }. Fields by type: ' +
           'create_followup → scheduledDate (YYYY-MM-DD, a future date), remarks, nextAction; ' +
-          'add_note → note; update_status → status (one of NEW, PROPOSAL_SENT, ' +
-          'AWAITING_RESPONSE, FOLLOW_UP, ACCEPTED, REJECTED, COMPLETED); create_proposal → ' +
+          'add_note → note; update_status → status (one of NEW, QUOTE_SENT, ' +
+          'FOLLOW_UP, CONFIRMED, ARRANGEMENTS, VOUCHER_SENT, COMPLETED, REJECTED); create_proposal → ' +
           'title, proposalType (VISA | TRAVEL_PACKAGE | HOTEL | CUSTOM), amount (number, ' +
           'optional — omit if unknown, never guess a price), currency (default USD), ' +
           'description. Prefer a follow-up or note unless a proposal is clearly the next ' +
@@ -400,5 +450,20 @@ export class AIService {
       return Number(value);
     }
     return null;
+  }
+
+  /** Coerce a model value into a clean, de-duplicated array of service labels. */
+  private asStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of value) {
+      const s = this.asString(item);
+      if (s && !seen.has(s.toLowerCase())) {
+        seen.add(s.toLowerCase());
+        out.push(s);
+      }
+    }
+    return out;
   }
 }

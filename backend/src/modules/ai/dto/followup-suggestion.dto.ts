@@ -14,7 +14,7 @@ export class FollowupSuggestionDto {
   @IsString()
   inquiryType!: string;
 
-  @ApiProperty({ example: 'PROPOSAL_SENT' })
+  @ApiProperty({ example: 'QUOTE_SENT' })
   @IsString()
   status!: string;
 

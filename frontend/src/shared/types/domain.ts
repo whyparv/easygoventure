@@ -7,16 +7,99 @@ export type LeadSource = (typeof LeadSource)[number];
 export const InquiryType = ['VISA', 'TRAVEL_PACKAGE', 'HOTEL', 'TRANSFER', 'CUSTOM'] as const;
 export type InquiryType = (typeof InquiryType)[number];
 
+// The EasyGo Venture travel-inquiry pipeline. Every record is a Lead moving
+// through these stages; REJECTED is the terminal closed/lost branch.
 export const LeadStatus = [
   'NEW',
-  'PROPOSAL_SENT',
-  'AWAITING_RESPONSE',
+  'QUOTE_SENT',
   'FOLLOW_UP',
-  'ACCEPTED',
-  'REJECTED',
+  'CONFIRMED',
+  'ARRANGEMENTS',
+  'VOUCHER_SENT',
   'COMPLETED',
+  'REJECTED',
 ] as const;
 export type LeadStatus = (typeof LeadStatus)[number];
+
+/** The active pipeline stages, in order (excludes the terminal REJECTED branch). */
+export const LEAD_PIPELINE: LeadStatus[] = [
+  'NEW',
+  'QUOTE_SENT',
+  'FOLLOW_UP',
+  'CONFIRMED',
+  'ARRANGEMENTS',
+  'VOUCHER_SENT',
+  'COMPLETED',
+];
+
+/** One hotel option quoted to the agency. */
+export interface LeadHotelOption {
+  name: string;
+  starRating?: number;
+  location?: string;
+  roomType?: string;
+  pricePerPerson?: number;
+  recommended?: boolean;
+}
+
+// ── Service catalog ───────────────────────────────────────────────────────────
+export const ServiceCategoryCode = [
+  'VISA',
+  'TRANSFER',
+  'ACTIVITY',
+  'SIGHTSEEING',
+  'MEAL',
+  'ACCOMMODATION',
+  'INSURANCE',
+  'OTHER',
+] as const;
+export type ServiceCategoryCode = (typeof ServiceCategoryCode)[number];
+
+export interface ServiceCategory {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+/** A tenant-scoped catalog service (source of truth for what EasyGo sells). */
+export interface Service {
+  id: string;
+  organizationId: string;
+  categoryCode: string;
+  name: string;
+  code?: string;
+  destination: string;
+  serviceType?: string;
+  /** Groups variants under a generic requirement label, e.g. "Airport Transfer". */
+  variantGroup?: string;
+  description?: string;
+  supplier?: string;
+  currency: string;
+  basePrice?: number;
+  costPrice?: number;
+  defaultSellPrice?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A service attached to a lead — a point-in-time snapshot of a catalog service. */
+export interface LeadServiceItem {
+  serviceId?: string;
+  serviceName: string;
+  categoryCode?: string;
+  /** The generic requirement group this variant fulfils, e.g. "Airport Transfer". */
+  variantGroup?: string;
+  supplier?: string;
+  currency?: string;
+  costPrice?: number;
+  sellPrice?: number;
+  snapshotDate?: string;
+}
 
 export interface Lead {
   id: string;
@@ -29,6 +112,28 @@ export interface Lead {
   status: LeadStatus;
   notes?: string;
   rawInquiry?: string;
+  // Inquiry requirements (the working brief)
+  requirementsNote?: string;
+  requestedServices?: string[];
+  requestedHotels?: string[];
+  // Selected catalog services (snapshots)
+  serviceItems?: LeadServiceItem[];
+  // Travel information
+  destination?: string;
+  travelDate?: string;
+  returnDate?: string;
+  adults?: number;
+  children?: number;
+  rooms?: number;
+  nights?: number;
+  services?: string[];
+  // Hotel options & pricing
+  hotelOptions?: LeadHotelOption[];
+  markup?: number;
+  currency?: string;
+  quoteValidityHours?: number;
+  // Internal tracking
+  preparedBy?: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -165,12 +270,24 @@ export interface AcceptProposalResult {
 
 export interface ParsedInquiry {
   customerName: string | null;
+  /** Travel agency / company the enquiry comes from. */
+  agencyName: string | null;
   customerPhone: string | null;
   customerEmail: string | null;
   destination: string | null;
   service: string | null;
+  /** Requested services as free-form labels (Visa, Airport Transfer, …). */
+  services: string[];
+  /** Hotels the client named in the inquiry. */
+  requestedHotels: string[];
+  /** AI-authored "CLIENT REQUIREMENTS" brief. */
+  requirementsNote: string | null;
   travelers: number | null;
+  adults: number | null;
+  children: number | null;
+  rooms: number | null;
   travelDate: string | null;
+  returnDate: string | null;
   budget: number | null;
   /** 0–100 extraction confidence for the whole enquiry. */
   confidence: number;

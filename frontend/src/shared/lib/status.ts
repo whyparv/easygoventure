@@ -2,12 +2,13 @@ export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'prim
 
 const LEAD_TONE: Record<string, Tone> = {
   NEW: 'pink',
-  PROPOSAL_SENT: 'primary',
-  AWAITING_RESPONSE: 'warning',
+  QUOTE_SENT: 'primary',
   FOLLOW_UP: 'warning',
-  ACCEPTED: 'success',
-  REJECTED: 'danger',
+  CONFIRMED: 'success',
+  ARRANGEMENTS: 'info',
+  VOUCHER_SENT: 'sage',
   COMPLETED: 'success',
+  REJECTED: 'danger',
 };
 
 const PROPOSAL_TONE: Record<string, Tone> = {

@@ -6,20 +6,44 @@ import type {
   Lead,
   LeadActivity,
   LeadActivityType,
+  LeadHotelOption,
+  LeadServiceItem,
   LeadSource,
   LeadStatus,
 } from '@shared/types/domain';
 
 export interface CreateLeadInput {
-  name: string;
-  phone: string;
+  // Everything is optional — a lead can be captured from a partial inquiry.
+  name?: string;
+  phone?: string;
   email?: string;
   companyName?: string;
   source?: LeadSource;
-  inquiryType: InquiryType;
+  inquiryType?: InquiryType;
   status?: LeadStatus;
   notes?: string;
   rawInquiry?: string;
+  // Inquiry requirements (the working brief)
+  requirementsNote?: string;
+  requestedServices?: string[];
+  requestedHotels?: string[];
+  serviceItems?: LeadServiceItem[];
+  // Travel information
+  destination?: string;
+  travelDate?: string;
+  returnDate?: string;
+  adults?: number;
+  children?: number;
+  rooms?: number;
+  nights?: number;
+  services?: string[];
+  // Hotel options & pricing
+  hotelOptions?: LeadHotelOption[];
+  markup?: number;
+  currency?: string;
+  quoteValidityHours?: number;
+  // Internal tracking
+  preparedBy?: string;
 }
 
 export type UpdateLeadInput = Partial<CreateLeadInput>;

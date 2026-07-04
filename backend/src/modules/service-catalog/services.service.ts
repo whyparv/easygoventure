@@ -1,12 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { FilterQuery, SortOrder, Types } from 'mongoose';
 import { PaginatedResponse } from '../../common/dto/paginated-response.dto';
-import {
-  BusinessException,
-  NotFoundException,
-  ValidationException,
-} from '../../common/exceptions/app.exceptions';
+import { NotFoundException, ValidationException } from '../../common/exceptions/app.exceptions';
 import { escapeRegExp } from '../../common/utils/regex.util';
+import { requireOrganizationId, tenantFilter } from '../../common/tenant/tenant-scope';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { ServicesRepository } from './services.repository';
@@ -25,7 +22,7 @@ export class ServicesService {
   ) {}
 
   async create(dto: CreateServiceDto, user: AuthenticatedUser): Promise<ServiceDocument> {
-    const organizationId = this.requireOrg(user);
+    const organizationId = requireOrganizationId(user);
     await this.serviceCategories.findByCodeOrThrow(dto.categoryCode);
 
     const created = await this.services.create({
@@ -53,13 +50,27 @@ export class ServicesService {
     query: QueryServiceDto,
     user: AuthenticatedUser,
   ): Promise<PaginatedResponse<ServiceDocument>> {
-    const scope = this.scope(user);
+    // Super-admins get an unscoped ({}) filter; every other principal is scoped to
+    // their organization — consistent with leads and the rest of the platform.
+    const scope = tenantFilter<ServiceDocument>(user);
 
     const filter: FilterQuery<ServiceDocument> = {};
-    if (query.categoryCode) filter.categoryCode = query.categoryCode;
-    if (query.isActive !== undefined) filter.isActive = query.isActive;
+    if (query.categoryCode) filter.categoryCode = query.categoryCode.toUpperCase();
+    if (query.destination) {
+      filter.destination = { $regex: `^${escapeRegExp(query.destination)}$`, $options: 'i' };
+    }
+    if (query.variantGroup) {
+      filter.variantGroup = { $regex: `^${escapeRegExp(query.variantGroup)}$`, $options: 'i' };
+    }
+    if (query.isActive !== undefined) filter.isActive = query.isActive === 'true';
     if (query.search) {
-      filter.name = { $regex: escapeRegExp(query.search), $options: 'i' };
+      const term = escapeRegExp(query.search);
+      filter.$or = [
+        { name: { $regex: term, $options: 'i' } },
+        { serviceType: { $regex: term, $options: 'i' } },
+        { supplier: { $regex: term, $options: 'i' } },
+        { variantGroup: { $regex: term, $options: 'i' } },
+      ];
     }
 
     const sort: Record<string, SortOrder> = {
@@ -80,7 +91,7 @@ export class ServicesService {
     }
     // Tenant isolation is enforced in the query — a service outside the caller's
     // organization is never fetched, and simply reads as "not found".
-    const service = await this.services.findByIdScoped(id, this.scope(user));
+    const service = await this.services.findByIdScoped(id, tenantFilter<ServiceDocument>(user));
     if (!service) {
       throw new NotFoundException(`Service "${id}" not found`, 'SERVICE_NOT_FOUND');
     }
@@ -97,7 +108,7 @@ export class ServicesService {
       await this.serviceCategories.findByCodeOrThrow(dto.categoryCode);
     }
 
-    const updated = await this.services.updateScoped(id, dto, this.scope(user));
+    const updated = await this.services.updateScoped(id, dto, tenantFilter<ServiceDocument>(user));
     if (!updated) throw new NotFoundException(`Service "${id}" not found`, 'SERVICE_NOT_FOUND');
 
     await this.auditService.recordForActor(user, undefined, {
@@ -126,7 +137,7 @@ export class ServicesService {
   async remove(id: string, user: AuthenticatedUser): Promise<void> {
     // findByIdOrThrow already excludes soft-deleted services → idempotent 404.
     await this.findByIdOrThrow(id, user);
-    const deleted = await this.services.softDeleteScoped(id, this.scope(user));
+    const deleted = await this.services.softDeleteScoped(id, tenantFilter<ServiceDocument>(user));
     if (!deleted) throw new NotFoundException(`Service "${id}" not found`, 'SERVICE_NOT_FOUND');
 
     await this.auditService.recordForActor(user, undefined, {
@@ -134,21 +145,5 @@ export class ServicesService {
       entity: 'Service',
       entityId: id,
     });
-  }
-
-  /** Resolves the caller's tenant, rejecting principals without an organization. */
-  private requireOrg(user: AuthenticatedUser): Types.ObjectId {
-    if (!user.organizationId) {
-      throw new BusinessException(
-        'An organization is required to manage services',
-        'ORGANIZATION_REQUIRED',
-      );
-    }
-    return new Types.ObjectId(user.organizationId);
-  }
-
-  /** Query-level tenant scope for the caller's organization. */
-  private scope(user: AuthenticatedUser): FilterQuery<ServiceDocument> {
-    return { organizationId: this.requireOrg(user) };
   }
 }

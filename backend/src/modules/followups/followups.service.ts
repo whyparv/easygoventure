@@ -16,7 +16,7 @@ import { FollowUp, FollowUpDocument } from './schemas/followup.schema';
 
 /** Lead states that must not be regressed by scheduling a follow-up. */
 const CLOSED_LEAD_STATUSES: LeadStatus[] = [
-  LeadStatus.ACCEPTED,
+  LeadStatus.CONFIRMED,
   LeadStatus.REJECTED,
   LeadStatus.COMPLETED,
 ];

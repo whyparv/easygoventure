@@ -130,7 +130,7 @@ export class ProposalsService {
     );
 
     const leadId = this.leadId(updated);
-    await this.leadsService.setStatus(leadId, LeadStatus.PROPOSAL_SENT, updated.organizationId);
+    await this.leadsService.setStatus(leadId, LeadStatus.QUOTE_SENT, updated.organizationId);
     await this.leadsService.appendActivity(
       leadId,
       LeadActivityType.PROPOSAL_SENT,
@@ -178,7 +178,7 @@ export class ProposalsService {
 
         const leadId = this.leadId(accepted);
         const organizationId = accepted.organizationId;
-        await this.leadsService.setStatus(leadId, LeadStatus.ACCEPTED, organizationId, session);
+        await this.leadsService.setStatus(leadId, LeadStatus.CONFIRMED, organizationId, session);
         await this.leadsService.appendActivity(
           leadId,
           LeadActivityType.PROPOSAL_ACCEPTED,

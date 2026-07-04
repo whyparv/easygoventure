@@ -40,6 +40,7 @@ export function DropdownItem({
       className={cn(
         'flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none transition-colors',
         'focus:bg-muted [&_svg]:size-4 [&_svg]:text-muted-foreground',
+        'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
         destructive && 'text-danger focus:bg-danger/10 [&_svg]:text-danger',
         className,
       )}

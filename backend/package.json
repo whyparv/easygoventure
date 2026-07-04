@@ -19,9 +19,14 @@
     "seed:catalog": "ts-node src/database/seed-catalog.ts",
     "seed:hotels": "ts-node src/database/hotel-catalog/hotel-catalog.seed-cli.ts",
     "create:admin": "ts-node src/database/create-admin.ts",
+    "assign:role": "ts-node src/database/assign-role.ts",
     "repair:rbac": "ts-node src/database/repair-rbac.ts",
     "hotels:build": "ts-node src/database/hotel-catalog/hotel-catalog.pipeline.ts",
-    "migrate:tenant": "ts-node src/database/migrations/backfill-organization-id.ts"
+    "migrate:tenant": "ts-node src/database/migrations/backfill-organization-id.ts",
+    "migrate:lead-status": "ts-node src/database/migrations/remap-lead-status.ts",
+    "migrate:lead-services": "ts-node src/database/migrations/backfill-lead-service-items.ts",
+    "migrate:service-variant-groups": "ts-node src/database/migrations/backfill-service-variant-groups.ts",
+    "seed:demo": "ts-node src/database/seed-demo.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.0",

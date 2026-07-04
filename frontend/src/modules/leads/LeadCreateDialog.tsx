@@ -3,6 +3,7 @@ import { Sparkles, TriangleAlert, Wand2 } from 'lucide-react';
 import { Modal } from '@shared/components/ui/modal';
 import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
+import { Textarea } from '@shared/components/ui/textarea';
 import { Select } from '@shared/components/ui/select';
 import { Badge } from '@shared/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
@@ -11,19 +12,11 @@ import { useCreateInquiry } from '@shared/mutations/inquiries.mutations';
 import { useParseInquiry } from '@shared/mutations/ai.mutations';
 import { InquiryType, LeadSource, type InquiryType as InquiryTypeT, type LeadSource as LeadSourceT } from '@shared/types/domain';
 import { titleCase } from '@shared/lib/format';
+import { serviceToInquiryType } from '@shared/lib/inquiry';
 import type { Tone } from '@shared/lib/status';
 
 const SOURCE_OPTIONS = LeadSource.map((s) => ({ label: titleCase(s), value: s }));
 const TYPE_OPTIONS = InquiryType.map((t) => ({ label: titleCase(t), value: t }));
-
-function serviceToInquiryType(service?: string | null): InquiryTypeT {
-  const s = (service ?? '').toLowerCase();
-  if (s.includes('visa')) return 'VISA';
-  if (s.includes('hotel')) return 'HOTEL';
-  if (s.includes('transfer')) return 'TRANSFER';
-  if (s.includes('package') || s.includes('tour') || s.includes('trip')) return 'TRAVEL_PACKAGE';
-  return 'CUSTOM';
-}
 
 interface Fields {
   name: string;
@@ -76,11 +69,16 @@ export function LeadCreateDialog({
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
+  // AI-parsed working brief (kept separate from the selected services/hotels).
+  const [req, setReq] = useState<{ note?: string; services: string[]; hotels: string[] }>({
+    services: [],
+    hotels: [],
+  });
 
   const parse = useParseInquiry();
   const createLead = useCreateLead();
   const createInquiry = useCreateInquiry();
-  const submitting = createLead.isPending || createInquiry.isPending;
+  const submitting = createLead.isPending;
 
   const set = (patch: Partial<Fields>) => setFields((f) => ({ ...f, ...patch }));
 
@@ -89,6 +87,7 @@ export function LeadCreateDialog({
     setFields(EMPTY);
     setConfidence(null);
     setMissing([]);
+    setReq({ services: [], hotels: [] });
     setMode('ai');
   };
   const close = () => {
@@ -104,58 +103,79 @@ export function LeadCreateDialog({
           name: p.customerName ?? fields.name,
           phone: p.customerPhone ?? fields.phone,
           email: p.customerEmail ?? fields.email,
+          companyName: p.agencyName ?? fields.companyName,
           destination: p.destination ?? fields.destination,
           travelDate: p.travelDate ?? fields.travelDate,
           budget: p.budget != null ? String(p.budget) : fields.budget,
-          travelers: p.travelers != null ? String(p.travelers) : fields.travelers,
+          travelers:
+            p.travelers != null
+              ? String(p.travelers)
+              : p.adults != null || p.children != null
+                ? String((p.adults ?? 0) + (p.children ?? 0))
+                : fields.travelers,
           inquiryType: serviceToInquiryType(p.service),
         });
         setConfidence(p.confidence);
         setMissing(p.missing ?? []);
+        setReq({ note: p.requirementsNote ?? undefined, services: p.services ?? [], hotels: p.requestedHotels ?? [] });
       },
     });
   };
 
   const create = async () => {
-    if (!fields.name.trim() || !fields.phone.trim()) return;
     try {
       const lead = await createLead.mutateAsync({
-        name: fields.name.trim(),
-        phone: fields.phone.trim(),
+        name: fields.name.trim() || undefined,
+        phone: fields.phone.trim() || undefined,
         email: fields.email || undefined,
         companyName: fields.companyName || undefined,
         source: fields.source,
         inquiryType: fields.inquiryType,
         notes: fields.notes || undefined,
         rawInquiry: raw || undefined,
-      });
-      await createInquiry.mutateAsync({
-        customerName: fields.name.trim(),
-        customerPhone: fields.phone || undefined,
-        customerEmail: fields.email || undefined,
-        companyName: fields.companyName || undefined,
-        source: fields.source,
+        // Persist the inquiry basics onto the lead itself (lead-centric model).
         destination: fields.destination || undefined,
-        travelers: fields.travelers ? Number(fields.travelers) : undefined,
         travelDate: fields.travelDate || undefined,
-        budget: fields.budget ? Number(fields.budget) : undefined,
-        rawInquiry: raw || undefined,
+        adults: fields.travelers ? Number(fields.travelers) : undefined,
+        // The AI-parsed working brief (empty for a purely manual lead).
+        requirementsNote: req.note,
+        requestedServices: req.services.length ? req.services : undefined,
+        requestedHotels: req.hotels.length ? req.hotels : undefined,
       });
       onCreated?.(lead.id);
       close();
+      // Best-effort legacy inquiry mirror — never blocks lead capture.
+      if (fields.name.trim()) {
+        createInquiry.mutate(
+          {
+            customerName: fields.name.trim(),
+            customerPhone: fields.phone || undefined,
+            customerEmail: fields.email || undefined,
+            companyName: fields.companyName || undefined,
+            source: fields.source,
+            destination: fields.destination || undefined,
+            travelers: fields.travelers ? Number(fields.travelers) : undefined,
+            travelDate: fields.travelDate || undefined,
+            budget: fields.budget ? Number(fields.budget) : undefined,
+            rawInquiry: raw || undefined,
+          },
+          { onError: () => {} },
+        );
+      }
     } catch {
       /* errors surface via mutation toasts */
     }
   };
 
-  const canCreate = Boolean(fields.name.trim() && fields.phone.trim());
+  // Nothing is mandatory — a travel-agency inquiry rarely arrives complete.
+  const canCreate = true;
 
   return (
     <Modal
       open={open}
       onOpenChange={(v) => (v ? onOpenChange(true) : close())}
-      title="New lead"
-      description="Capture a lead — the matching inquiry is created automatically."
+      title="Capture inquiry"
+      description="Log a travel-agency inquiry — add whatever details you have. Nothing is required; you can enrich the lead later."
       className="sm:max-w-2xl"
       footer={
         <>
@@ -182,12 +202,11 @@ export function LeadCreateDialog({
               <span className="text-xs font-medium text-muted-foreground">
                 Paste a WhatsApp message, email, or enquiry
               </span>
-              <textarea
+              <Textarea
                 value={raw}
                 onChange={(e) => setRaw(e.target.value)}
                 rows={4}
                 placeholder="e.g. Hi, this is Aisha (+971 50 123 4567). We're 2 adults + 1 child looking for a 5-day Dubai package in December, budget around 15000 AED…"
-                className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </label>
             <div className="flex items-center gap-2">
@@ -199,13 +218,13 @@ export function LeadCreateDialog({
                   {confidence}% confidence
                 </Badge>
               )}
-              <span className="text-xs text-muted-foreground">Review &amp; edit the fields below before creating.</span>
+              <span className="text-xs text-muted-foreground">Review &amp; edit the fields below, then create.</span>
             </div>
             {confidence !== null && missing.length > 0 && (
-              <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  <span className="font-medium">Missing:</span> {missing.join(', ')} — add these before creating.
+                  <span className="font-medium text-foreground">Not detected:</span> {missing.join(', ')} — optional, you can add these later.
                 </span>
               </div>
             )}
@@ -233,18 +252,18 @@ function ExtractedFields({
   showTrip: boolean;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Field label="Full name" required>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Field label="Contact person">
         <Input value={fields.name} onChange={(e) => set({ name: e.target.value })} placeholder="Aisha Khan" />
       </Field>
-      <Field label="Phone / WhatsApp" required>
+      <Field label="Phone / WhatsApp">
         <Input value={fields.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+971 50 000 0000" />
       </Field>
       <Field label="Email">
         <Input type="email" value={fields.email} onChange={(e) => set({ email: e.target.value })} placeholder="you@agency.com" />
       </Field>
-      <Field label="Company">
-        <Input value={fields.companyName} onChange={(e) => set({ companyName: e.target.value })} />
+      <Field label="Agency">
+        <Input value={fields.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Travel Connect" />
       </Field>
       <Field label="Source">
         <Select options={SOURCE_OPTIONS} value={fields.source} onChange={(e) => set({ source: e.target.value as LeadSourceT })} />
@@ -281,12 +300,7 @@ function ExtractedFields({
       )}
       <label className="col-span-2 space-y-1 text-sm">
         <span className="text-xs font-medium text-muted-foreground">Notes</span>
-        <textarea
-          value={fields.notes}
-          onChange={(e) => set({ notes: e.target.value })}
-          rows={2}
-          className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
+        <Textarea value={fields.notes} onChange={(e) => set({ notes: e.target.value })} rows={2} />
       </label>
     </div>
   );

@@ -17,6 +17,14 @@ import {
 import { Avatar } from '@shared/components/ui/avatar';
 import { ROUTES } from '@app/config/routes';
 
+function SoonBadge() {
+  return (
+    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      Soon
+    </span>
+  );
+}
+
 export function Topbar() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -67,11 +75,18 @@ export function Topbar() {
             <DropdownItem onSelect={() => navigate(`${ROUTES.leads}?new=1`)}>
               <UserRound /> New lead
             </DropdownItem>
-            <DropdownItem onSelect={() => navigate(ROUTES.proposals)}>
-              <Plus /> New proposal
+            {/* Proposal & follow-up workflows are deferred — kept, but not yet active. */}
+            <DropdownItem disabled className="justify-between">
+              <span className="flex items-center gap-2">
+                <Plus /> New proposal
+              </span>
+              <SoonBadge />
             </DropdownItem>
-            <DropdownItem onSelect={() => navigate(ROUTES.followups)}>
-              <Plus /> New follow-up
+            <DropdownItem disabled className="justify-between">
+              <span className="flex items-center gap-2">
+                <Plus /> New follow-up
+              </span>
+              <SoonBadge />
             </DropdownItem>
           </DropdownContent>
         </Dropdown>

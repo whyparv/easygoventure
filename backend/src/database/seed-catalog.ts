@@ -36,9 +36,13 @@ const SERVICE_CATEGORIES = [
   { code: 'HOTEL', name: 'Hotel', description: 'Hotels, resorts & apartments', sortOrder: 2 },
   { code: 'TRANSFER', name: 'Transfer', description: 'Airport transfers & chauffeur', sortOrder: 3 },
   { code: 'ACTIVITY', name: 'Activity', description: 'Tours, activities & attractions', sortOrder: 4 },
-  { code: 'INSURANCE', name: 'Insurance', description: 'Travel insurance', sortOrder: 5 },
-  { code: 'PACKAGE', name: 'Package', description: 'Holiday packages', sortOrder: 6 },
-  { code: 'CUSTOM', name: 'Custom', description: 'Custom / other services', sortOrder: 7 },
+  { code: 'SIGHTSEEING', name: 'Sightseeing', description: 'City tours & sightseeing', sortOrder: 5 },
+  { code: 'MEAL', name: 'Meal', description: 'Meal plans (breakfast, half/full board)', sortOrder: 6 },
+  { code: 'ACCOMMODATION', name: 'Accommodation', description: 'Room nights & stays', sortOrder: 7 },
+  { code: 'INSURANCE', name: 'Insurance', description: 'Travel insurance', sortOrder: 8 },
+  { code: 'PACKAGE', name: 'Package', description: 'Holiday packages', sortOrder: 9 },
+  { code: 'OTHER', name: 'Other', description: 'Other / custom services', sortOrder: 10 },
+  { code: 'CUSTOM', name: 'Custom', description: 'Custom / other services (legacy)', sortOrder: 11 },
 ];
 
 const env = process.env;

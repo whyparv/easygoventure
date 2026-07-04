@@ -6,7 +6,6 @@ import {
   Phone,
   Plus,
   Send,
-  Sparkles,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -32,7 +31,7 @@ import { useLead, useLeadActivities } from '@shared/queries/leads.queries';
 import { useProposals } from '@shared/queries/proposals.queries';
 import { useFollowups } from '@shared/queries/followups.queries';
 import { useFulfillments } from '@shared/queries/fulfillments.queries';
-import { useUpdateLead, useDeleteLead, useAddLeadActivity } from '@shared/mutations/leads.mutations';
+import { useUpdateLead, useDeleteLead } from '@shared/mutations/leads.mutations';
 import {
   useAcceptProposal,
   useCreateProposal,
@@ -41,7 +40,8 @@ import {
 } from '@shared/mutations/proposals.mutations';
 import { useCreateFollowup, useUpdateFollowup } from '@shared/mutations/followups.mutations';
 import { useUpdateFulfillment } from '@shared/mutations/fulfillments.mutations';
-import { useFollowupSuggestion } from '@shared/mutations/ai.mutations';
+import { LeadOverviewTab } from './LeadOverviewTab';
+import { leadDisplayName } from './lead-display';
 import {
   FulfillmentStatus,
   LeadStatus,
@@ -54,6 +54,7 @@ import {
 import { formatCurrency, formatDate, formatRelative, titleCase } from '@shared/lib/format';
 import { fulfillmentTone, leadTone, proposalTone } from '@shared/lib/status';
 import { useUiStore } from '@shared/stores/ui.store';
+import { useAuthStore } from '@shared/stores/auth.store';
 
 export function LeadDrawer({ leadId, onClose }: { leadId: string | null; onClose: () => void }) {
   const open = Boolean(leadId);
@@ -63,7 +64,7 @@ export function LeadDrawer({ leadId, onClose }: { leadId: string | null; onClose
     <Drawer
       open={open}
       onOpenChange={(v) => !v && onClose()}
-      title={isLoading ? 'Loading…' : (lead?.name ?? 'Lead')}
+      title={isLoading ? 'Loading…' : lead ? leadDisplayName(lead) : 'Lead'}
       header={lead && <LeadHeader lead={lead} />}
     >
       {isLoading || !lead ? (
@@ -97,13 +98,14 @@ function LeadHeader({ lead }: { lead: Lead }) {
 function LeadDrawerBody({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
+  const canDelete = useAuthStore((s) => s.hasPermission('lead.delete'));
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
     <div className="flex h-full flex-col">
       <LeadAiContextBridge lead={lead} />
       <div className="flex items-center gap-2 border-b border-border px-6 py-3">
-        <Avatar name={lead.name} size="lg" />
+        <Avatar name={leadDisplayName(lead)} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             {lead.phone && (
@@ -127,18 +129,21 @@ function LeadDrawerBody({ lead, onClose }: { lead: Lead; onClose: () => void }) 
             }
           />
         </div>
-        <Dropdown>
-          <DropdownTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More">
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownTrigger>
-          <DropdownContent>
-            <DropdownItem destructive onSelect={() => setConfirmDelete(true)}>
-              <Trash2 /> Delete lead
-            </DropdownItem>
-          </DropdownContent>
-        </Dropdown>
+        {/* Delete is a manager-level action — hidden for staff without lead.delete. */}
+        {canDelete && (
+          <Dropdown>
+            <DropdownTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="More">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownTrigger>
+            <DropdownContent>
+              <DropdownItem destructive onSelect={() => setConfirmDelete(true)}>
+                <Trash2 /> Delete lead
+              </DropdownItem>
+            </DropdownContent>
+          </Dropdown>
+        )}
       </div>
 
       <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
@@ -146,14 +151,19 @@ function LeadDrawerBody({ lead, onClose }: { lead: Lead; onClose: () => void }) 
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="proposals">Proposals</TabsTrigger>
-            <TabsTrigger value="followups">Follow-ups</TabsTrigger>
+            {/* Proposal & follow-up workflows are deferred — kept in code, disabled for now. */}
+            <TabsTrigger value="proposals" disabled title="Coming soon">
+              Proposals · Soon
+            </TabsTrigger>
+            <TabsTrigger value="followups" disabled title="Coming soon">
+              Follow-ups · Soon
+            </TabsTrigger>
             <TabsTrigger value="fulfillments">Fulfillments</TabsTrigger>
           </TabsList>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           <TabsContent value="overview">
-            <OverviewTab lead={lead} />
+            <LeadOverviewTab lead={lead} />
           </TabsContent>
           <TabsContent value="timeline">
             <TimelineTab leadId={lead.id} />
@@ -187,87 +197,6 @@ function LeadDrawerBody({ lead, onClose }: { lead: Lead; onClose: () => void }) 
           })
         }
       />
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value || '—'}</span>
-    </div>
-  );
-}
-
-function OverviewTab({ lead }: { lead: Lead }) {
-  const addActivity = useAddLeadActivity();
-  const suggest = useFollowupSuggestion();
-  const [note, setNote] = useState('');
-
-  return (
-    <div className="space-y-5">
-      <section className="rounded-lg border border-border">
-        <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Details
-        </div>
-        <div className="divide-y divide-border px-4">
-          <InfoRow label="Source" value={titleCase(lead.source)} />
-          <InfoRow label="Inquiry type" value={titleCase(lead.inquiryType)} />
-          <InfoRow label="Company" value={lead.companyName} />
-          <InfoRow label="Created" value={formatDate(lead.createdAt)} />
-          {lead.rawInquiry && <InfoRow label="Message" value={lead.rawInquiry} />}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-primary/20 bg-primary/[0.03] p-4">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Sparkles className="size-4 text-primary" /> AI · Suggested next action
-          </span>
-          <Button
-            size="sm"
-            variant="secondary"
-            loading={suggest.isPending}
-            onClick={() =>
-              suggest.mutate({
-                leadName: lead.name,
-                inquiryType: lead.inquiryType,
-                status: lead.status,
-                context: lead.rawInquiry,
-              })
-            }
-          >
-            Generate
-          </Button>
-        </div>
-        {suggest.data && (
-          <p className="mt-3 text-sm leading-relaxed text-foreground">{suggest.data.message}</p>
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <label className="text-sm font-medium text-foreground">Add a note</label>
-        <div className="flex gap-2">
-          <Input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Log a call, a detail…"
-          />
-          <Button
-            disabled={!note.trim()}
-            loading={addActivity.isPending}
-            onClick={() =>
-              addActivity.mutate(
-                { id: lead.id, input: { type: 'NOTE_ADDED', description: note } },
-                { onSuccess: () => setNote('') },
-              )
-            }
-          >
-            Add
-          </Button>
-        </div>
-      </section>
     </div>
   );
 }

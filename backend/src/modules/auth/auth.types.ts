@@ -26,6 +26,8 @@ export interface JwtPayload {
 export interface AuthenticatedUser {
   id: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   organizationId: string | null;
   departmentId: string | null;
   roles: string[];

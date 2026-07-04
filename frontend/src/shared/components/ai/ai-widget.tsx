@@ -1,22 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, SendHorizonal, Sparkles, Wand2, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, SendHorizonal, Sparkles, UserPlus, Wand2, X } from 'lucide-react';
 import { Drawer } from '@shared/components/ui/drawer';
 import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Textarea } from '@shared/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import { Badge } from '@shared/components/ui/badge';
 import { useUiStore } from '@shared/stores/ui.store';
-import {
-  useAiChat,
-  useAiNextAction,
-  useParseInquiry,
-  useFollowupSuggestion,
-} from '@shared/mutations/ai.mutations';
-import { useCreateFollowup } from '@shared/mutations/followups.mutations';
-import { useAddLeadActivity, useUpdateLead } from '@shared/mutations/leads.mutations';
-import { useCreateProposal } from '@shared/mutations/proposals.mutations';
-import type { ChatTurn, NextAction } from '@shared/services/ai.service';
-import type { LeadStatus, ProposalType } from '@shared/types/domain';
-import { formatCurrency, titleCase } from '@shared/lib/format';
+import { useAiChat, useParseInquiry } from '@shared/mutations/ai.mutations';
+import { useCreateLead } from '@shared/mutations/leads.mutations';
+import type { ChatTurn } from '@shared/services/ai.service';
+import type { ParsedInquiry } from '@shared/types/domain';
+import { serviceToInquiryType } from '@shared/lib/inquiry';
+import { ROUTES } from '@app/config/routes';
 
 export function AIWidget() {
   const open = useUiStore((s) => s.aiOpen);
@@ -38,18 +35,14 @@ export function AIWidget() {
         <Tabs defaultValue="assistant" className="flex min-h-0 flex-1 flex-col">
           <TabsList>
             <TabsTrigger value="assistant">Assistant</TabsTrigger>
-            <TabsTrigger value="parse">Parse Inquiry</TabsTrigger>
-            <TabsTrigger value="followup">Follow-up</TabsTrigger>
+            <TabsTrigger value="parse">Paste Enquiry</TabsTrigger>
           </TabsList>
           <div className="min-h-0 flex-1 pt-4">
             <TabsContent value="assistant" className="h-full">
               <ChatPanel />
             </TabsContent>
-            <TabsContent value="parse">
-              <ParseInquiryPanel />
-            </TabsContent>
-            <TabsContent value="followup">
-              <FollowupPanel />
+            <TabsContent value="parse" className="h-full">
+              <PasteEnquiryPanel onClose={() => setOpen(false)} />
             </TabsContent>
           </div>
         </Tabs>
@@ -67,33 +60,21 @@ const GENERIC_SUGGESTIONS = [
 
 const RECORD_SUGGESTIONS = [
   'Summarise this lead and where the deal stands.',
-  'What is the best next action for this lead?',
   'Draft a WhatsApp follow-up for this lead.',
   'Any risks or missing info I should chase on this deal?',
+  'Suggest one 4-star and one 5-star hotel for this trip.',
 ];
 
 function ChatPanel() {
   const [messages, setMessages] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState('');
-  const [action, setAction] = useState<NextAction | null>(null);
   const chat = useAiChat();
-  const nextAction = useAiNextAction();
   const scrollRef = useRef<HTMLDivElement>(null);
   const aiContext = useUiStore((s) => s.aiContext);
-  const canAct = Boolean(aiContext?.entity);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, chat.isPending, action]);
-
-  const suggestAction = () => {
-    if (!aiContext || nextAction.isPending) return;
-    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    nextAction.mutate(
-      { context: aiContext.text, message: lastUser?.content },
-      { onSuccess: setAction },
-    );
-  };
+  }, [messages, chat.isPending]);
 
   const send = (text: string) => {
     const message = text.trim();
@@ -125,17 +106,6 @@ function ChatPanel() {
           <span className="min-w-0 flex-1 truncate text-foreground">
             Answering about <span className="font-medium">{aiContext.label}</span>
           </span>
-          {canAct && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 shrink-0 px-2 text-xs"
-              loading={nextAction.isPending}
-              onClick={suggestAction}
-            >
-              <Zap /> Next action
-            </Button>
-          )}
         </div>
       )}
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
@@ -186,18 +156,6 @@ function ChatPanel() {
         )}
       </div>
 
-      {action && aiContext?.entity && (
-        <ActionCard
-          nextAction={action}
-          leadId={aiContext.entity.id}
-          onDismiss={() => setAction(null)}
-          onApplied={(label) => {
-            setAction(null);
-            setMessages((prev) => [...prev, { role: 'assistant', content: `✅ Done — ${label}` }]);
-          }}
-        />
-      )}
-
       <form
         className="mt-3 flex items-end gap-2 border-t border-border pt-3"
         onSubmit={(e) => {
@@ -232,220 +190,254 @@ function ChatPanel() {
   );
 }
 
-const ACTION_LABEL: Record<NextAction['action']['type'], string> = {
-  create_followup: 'Schedule follow-up',
-  add_note: 'Add note',
-  update_status: 'Update status',
-  create_proposal: 'Draft proposal',
-  none: 'No action needed',
-};
+interface Draft {
+  agencyName: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  destination: string;
+  travelDate: string;
+  returnDate: string;
+  adults: string;
+  children: string;
+  rooms: string;
+  services: string[];
+  requestedHotels: string[];
+  requirementsNote: string;
+  service: string | null;
+}
 
-/** A confirmable, AI-recommended action executed via the existing CRM mutations. */
-function ActionCard({
-  nextAction,
-  leadId,
-  onDismiss,
-  onApplied,
-}: {
-  nextAction: NextAction;
-  leadId: string;
-  onDismiss: () => void;
-  onApplied: (label: string) => void;
-}) {
-  const { summary, action } = nextAction;
-  const createFollowup = useCreateFollowup();
-  const addNote = useAddLeadActivity();
-  const updateLead = useUpdateLead();
-  const createProposal = useCreateProposal();
-  const executing =
-    createFollowup.isPending ||
-    addNote.isPending ||
-    updateLead.isPending ||
-    createProposal.isPending;
+const str = (v?: string | null) => v ?? '';
+const numStr = (v?: number | null) => (v == null ? '' : String(v));
 
-  const apply = () => {
-    switch (action.type) {
-      case 'create_followup':
-        createFollowup.mutate(
-          {
-            leadId,
-            scheduledDate: toIsoDate(action.scheduledDate),
-            remarks: action.remarks,
-            nextAction: action.nextAction,
-          },
-          { onSuccess: () => onApplied('follow-up scheduled') },
-        );
-        break;
-      case 'add_note':
-        if (!action.note) return;
-        addNote.mutate(
-          { id: leadId, input: { type: 'NOTE_ADDED', description: action.note } },
-          { onSuccess: () => onApplied('note added') },
-        );
-        break;
-      case 'update_status':
-        if (!action.status) return;
-        updateLead.mutate(
-          { id: leadId, input: { status: action.status as LeadStatus } },
-          { onSuccess: () => onApplied(`status set to ${titleCase(action.status as string)}`) },
-        );
-        break;
-      case 'create_proposal':
-        if (!action.title) return;
-        createProposal.mutate(
-          {
-            leadId,
-            title: action.title,
-            proposalType: (action.proposalType ?? 'CUSTOM') as ProposalType,
-            amount: action.amount,
-            currency: action.currency,
-            description: action.description,
-          },
-          { onSuccess: () => onApplied('proposal drafted') },
-        );
-        break;
-    }
+function draftFromParsed(p: ParsedInquiry): Draft {
+  return {
+    agencyName: str(p.agencyName),
+    contactPerson: str(p.customerName),
+    phone: str(p.customerPhone),
+    email: str(p.customerEmail),
+    destination: str(p.destination),
+    travelDate: str(p.travelDate),
+    returnDate: str(p.returnDate),
+    adults: numStr(p.adults ?? p.travelers),
+    children: numStr(p.children),
+    rooms: numStr(p.rooms),
+    services: p.services ?? [],
+    requestedHotels: p.requestedHotels ?? [],
+    requirementsNote: str(p.requirementsNote),
+    service: p.service,
+  };
+}
+
+/**
+ * Paste a raw enquiry → AI extracts structured fields → agent reviews/edits →
+ * clicks Create Lead. The lead is NOT created automatically; on create it opens
+ * in the Leads workspace so the agent can add services, hotels and pricing.
+ */
+function PasteEnquiryPanel({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const [text, setText] = useState('');
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
+  const parse = useParseInquiry();
+  const createLead = useCreateLead();
+
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+    setDraft((d) => (d ? { ...d, [key]: value } : d));
+
+  const extract = () => {
+    if (text.trim().length < 3) return;
+    parse.mutate(text, {
+      onSuccess: (p) => {
+        setDraft(draftFromParsed(p));
+        setConfidence(p.confidence);
+        setMissing(p.missing ?? []);
+      },
+    });
   };
 
-  const actionable = action.type !== 'none';
+  const num = (v: string) => {
+    const n = Number(v);
+    return v.trim() !== '' && Number.isFinite(n) ? n : undefined;
+  };
+
+  const createLeadFromDraft = () => {
+    if (!draft) return;
+    createLead.mutate(
+      {
+        name: draft.contactPerson.trim() || undefined,
+        phone: draft.phone.trim() || undefined,
+        email: draft.email.trim() || undefined,
+        companyName: draft.agencyName.trim() || undefined,
+        source: 'WHATSAPP',
+        inquiryType: serviceToInquiryType(draft.service),
+        destination: draft.destination.trim() || undefined,
+        travelDate: draft.travelDate || undefined,
+        returnDate: draft.returnDate || undefined,
+        adults: num(draft.adults),
+        children: num(draft.children),
+        rooms: num(draft.rooms),
+        // The inquiry becomes the working brief: store what the client REQUESTED.
+        // Selected services/hotels are built by the agent in the lead detail.
+        requestedServices: draft.services,
+        requestedHotels: draft.requestedHotels,
+        requirementsNote: draft.requirementsNote || undefined,
+        rawInquiry: text || undefined,
+      },
+      {
+        onSuccess: (lead) => {
+          // Open the new lead so the agent continues into services → hotels → quote.
+          navigate(`${ROUTES.leads}?lead=${lead.id}`);
+          onClose();
+          setText('');
+          setDraft(null);
+          setConfidence(null);
+          setMissing([]);
+        },
+      },
+    );
+  };
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <Zap className="size-4 text-primary" />
-        {ACTION_LABEL[action.type]}
-      </div>
-      <p className="text-sm text-muted-foreground">{summary}</p>
-
-      {actionable && (
-        <div className="space-y-1 rounded-md border border-border bg-card px-3 py-2">
-          {action.type === 'create_followup' && (
-            <>
-              <Field label="When" value={action.scheduledDate ?? null} />
-              <Field label="Remarks" value={action.remarks ?? null} />
-              <Field label="Next action" value={action.nextAction ?? null} />
-            </>
-          )}
-          {action.type === 'add_note' && <Field label="Note" value={action.note ?? null} />}
-          {action.type === 'update_status' && (
-            <Field label="New status" value={action.status ? titleCase(action.status) : null} />
-          )}
-          {action.type === 'create_proposal' && (
-            <>
-              <Field label="Title" value={action.title ?? null} />
-              <Field label="Type" value={action.proposalType ? titleCase(action.proposalType) : null} />
-              <Field
-                label="Amount"
-                value={action.amount != null ? formatCurrency(action.amount, action.currency) : 'On request'}
-              />
-              <Field label="Details" value={action.description ?? null} />
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="flex items-center justify-end gap-2 pt-1">
-        <Button variant="ghost" size="sm" onClick={onDismiss} disabled={executing}>
-          Dismiss
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        <p className="text-sm text-muted-foreground">
+          Paste a WhatsApp message or email. The assistant extracts the details — review, then create the lead.
+        </p>
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          placeholder={'Need Dubai package\n15–19 June\n2 adults\nVisa, Airport Transfer, Desert Safari'}
+        />
+        <Button
+          className="w-full"
+          variant={draft ? 'secondary' : 'primary'}
+          loading={parse.isPending}
+          disabled={text.trim().length < 3}
+          onClick={extract}
+        >
+          <Wand2 /> {draft ? 'Re-extract' : 'Extract with AI'}
         </Button>
-        {actionable && (
-          <Button size="sm" loading={executing} onClick={apply}>
-            <CheckCircle2 /> {ACTION_LABEL[action.type]}
-          </Button>
+
+        {draft && (
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Extracted — review &amp; edit
+              </span>
+              {confidence !== null && (
+                <Badge tone={confidence >= 70 ? 'success' : confidence >= 40 ? 'warning' : 'danger'} dot>
+                  {confidence}%
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <DraftField label="Agency" value={draft.agencyName} onChange={(v) => set('agencyName', v)} />
+              <DraftField label="Contact person" value={draft.contactPerson} onChange={(v) => set('contactPerson', v)} />
+              <DraftField label="Phone" value={draft.phone} onChange={(v) => set('phone', v)} />
+              <DraftField label="Destination" value={draft.destination} onChange={(v) => set('destination', v)} />
+              <DraftField label="Travel date" type="date" value={draft.travelDate} onChange={(v) => set('travelDate', v)} />
+              <DraftField label="Return date" type="date" value={draft.returnDate} onChange={(v) => set('returnDate', v)} />
+              <DraftField label="Adults" type="number" value={draft.adults} onChange={(v) => set('adults', v)} />
+              <DraftField label="Children" type="number" value={draft.children} onChange={(v) => set('children', v)} />
+              <DraftField label="Rooms" type="number" value={draft.rooms} onChange={(v) => set('rooms', v)} />
+            </div>
+
+            <ChipEditor
+              label="Requested services"
+              items={draft.services}
+              onRemove={(s) => set('services', draft.services.filter((x) => x !== s))}
+              emptyHint="None detected."
+            />
+            <ChipEditor
+              label="Requested hotels"
+              items={draft.requestedHotels}
+              onRemove={(h) => set('requestedHotels', draft.requestedHotels.filter((x) => x !== h))}
+              emptyHint="None named."
+            />
+
+            {draft.requirementsNote && (
+              <div className="space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Requirements brief</span>
+                <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-card p-2 font-sans text-xs leading-relaxed text-foreground">
+                  {draft.requirementsNote}
+                </pre>
+              </div>
+            )}
+
+            {missing.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Not detected: {missing.join(', ')} — optional, add later.
+              </p>
+            )}
+          </div>
         )}
       </div>
-    </div>
-  );
-}
 
-/** Normalize an AI date (YYYY-MM-DD or ISO) to a full ISO 8601 string. */
-function toIsoDate(value?: string): string {
-  if (!value) return new Date().toISOString();
-  const withTime = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T09:00:00` : value;
-  const parsed = new Date(withTime);
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
-}
-
-function ParseInquiryPanel() {
-  const [text, setText] = useState('');
-  const parse = useParseInquiry();
-  const result = parse.data;
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Paste a WhatsApp/email inquiry and extract structured travel details.
-      </p>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={4}
-        placeholder="Need Dubai visa for 2 adults on 15 July…"
-        className="w-full resize-none rounded-md border border-input bg-card p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-      />
-      <Button
-        className="w-full"
-        loading={parse.isPending}
-        disabled={text.trim().length < 3}
-        onClick={() => parse.mutate(text)}
-      >
-        <Wand2 /> Extract details
-      </Button>
-      {result && (
-        <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
-          <Field label="Destination" value={result.destination} />
-          <Field label="Service" value={result.service} />
-          <Field label="Travelers" value={result.travelers?.toString() ?? null} />
-          <Field label="Travel date" value={result.travelDate} />
+      {draft && (
+        <div className="mt-3 border-t border-border pt-3">
+          <Button className="w-full" loading={createLead.isPending} onClick={createLeadFromDraft}>
+            <UserPlus /> Create Lead <ArrowRight className="ml-auto" />
+          </Button>
         </div>
       )}
     </div>
   );
 }
 
-function FollowupPanel() {
-  const [leadName, setLeadName] = useState('');
-  const [inquiryType] = useState('VISA');
-  const [status] = useState('PROPOSAL_SENT');
-  const suggest = useFollowupSuggestion();
-
+function ChipEditor({
+  label,
+  items,
+  onRemove,
+  emptyHint,
+}: {
+  label: string;
+  items: string[];
+  onRemove: (item: string) => void;
+  emptyHint: string;
+}) {
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Generate a professional follow-up message for a lead.
-      </p>
-      <input
-        value={leadName}
-        onChange={(e) => setLeadName(e.target.value)}
-        placeholder="Lead / agency name"
-        className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-      />
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <Badge tone="info">{titleCase(inquiryType)}</Badge>
-        <Badge tone="primary">{titleCase(status)}</Badge>
-      </div>
-      <Button
-        className="w-full"
-        loading={suggest.isPending}
-        disabled={!leadName.trim()}
-        onClick={() => suggest.mutate({ leadName, inquiryType, status })}
-      >
-        <Wand2 /> Suggest message
-      </Button>
-      {suggest.data && (
-        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm leading-relaxed text-foreground">
-          {suggest.data.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="space-y-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-foreground">{value ?? '—'}</span>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{emptyHint}</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {items.map((s) => (
+            <span
+              key={s}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs text-primary"
+            >
+              {s}
+              <button type="button" onClick={() => onRemove(s)} aria-label={`Remove ${s}`}>
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function DraftField({
+  label,
+  value,
+  onChange,
+  type,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="space-y-1">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
   );
 }

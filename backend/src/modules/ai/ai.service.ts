@@ -6,6 +6,8 @@ import {
   type HotelRecommendations,
 } from '../hotels/hotel-recommendation.service';
 import { BrainService } from '../brain/brain.service';
+import { HotelsService } from '../hotels/hotels.service';
+import { ServicesService } from '../service-catalog/services.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { ProposalDraftDto } from './dto/proposal-draft.dto';
 import { ParseInquiryDto } from './dto/parse-inquiry.dto';
@@ -106,8 +108,10 @@ const DMC_ASSISTANT_PERSONA =
 export class AIService {
   constructor(
     @Inject(AI_PROVIDER) private readonly provider: AIProvider,
-    private readonly hotels: HotelRecommendationService,
+    private readonly hotelRecommendations: HotelRecommendationService,
     private readonly brain: BrainService,
+    private readonly hotelsService: HotelsService,
+    private readonly servicesService: ServicesService,
   ) {}
 
   /**
@@ -118,7 +122,7 @@ export class AIService {
   async proposalDraft(
     dto: ProposalDraftDto,
   ): Promise<{ proposal: string; recommendations: HotelRecommendations }> {
-    const recommendations = this.hotels.recommend({
+    const recommendations = this.hotelRecommendations.recommend({
       destination: dto.destination,
       budget: dto.budget,
       travelers: dto.travelers,
@@ -180,7 +184,7 @@ export class AIService {
           '"Dolphin Show at Dubai Dolphinarium"]. Include named inclusions like "Daily Breakfast" and ' +
           '"Accommodation". Do not merge, summarise or omit lines; empty array if none stated), ' +
           'adults (number of adults as an integer | null), children (number of children | null), ' +
-          'rooms (number of hotel rooms | null), '
+          'rooms (number of hotel rooms | null), ' +
           'travelers (total head count as an integer, summing adults and children | null), ' +
           'travelDate (ISO date YYYY-MM-DD | null; when a date has no year use the next future ' +
           'occurrence, never a past date, and pick the start/departure date for a range), ' +
@@ -429,34 +433,65 @@ export class AIService {
 
     const systemPrompt = [
       `${DMC_ASSISTANT_PERSONA} Today's date is ${this.today()}.`,
-      'You are helping a DMC agent capture a new lead by gathering information through conversation.',
-      'Your job: have a friendly, professional conversation to collect lead details.',
-      'Required fields: full name, phone number.',
-      'Important fields: destination(s), travel dates, number of travelers, budget, inquiry type (visa/hotel/travel package/transfer).',
-      'After each user message, respond helpfully and ask for any missing important info naturally.',
-      'Keep responses short (2-3 sentences max). Be warm and efficient.',
+      'You are an expert DMC lead-capture assistant for EasyGo Venture Tourism (UAE-based DMC).',
+      'Your role: gather lead details conversationally AND extract hotels/services mentioned in real-time.',
       '',
-      'CRITICAL: You MUST return valid JSON as your ENTIRE response (no extra text), in this exact format:',
-      '{"reply":"your conversational response","extractedData":{"name":"full name","phone":"+971501234567","email":"","companyName":"","inquiryType":"TRAVEL_PACKAGE","source":"WHATSAPP","destination":"Dubai","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","budget":15000,"travelers":2,"notes":""},"isComplete":false,"missingFields":["phone"],"whatsappGreeting":""}',
+      '━━ REQUIRED (must collect before lead can be created) ━━',
+      'full name, phone number with country code.',
       '',
-      'Rules for extractedData:',
-      '- Merge existing data with anything NEW from this message. Never erase already-extracted fields.',
-      '- name: full name as given. phone: include country code (+971 for UAE etc.).',
-      '- startDate / endDate: ISO date YYYY-MM-DD. If only month/year given, use first day of that month for startDate.',
-      '- If traveler says "7 nights from Dec 15", set startDate=2025-12-15 and endDate=2025-12-22.',
-      '- travelers: total headcount including children. budget: numeric, strip currency symbols.',
-      '- destination: primary city/country, comma-separated if multiple.',
-      '- inquiryType: one of VISA, TRAVEL_PACKAGE, HOTEL, TRANSFER, CUSTOM.',
-      '- source: one of WHATSAPP, EMAIL, MANUAL.',
-      '- Omit/null fields not yet known.',
+      '━━ IMPORTANT FIELDS ━━',
+      'destination(s), travel dates, travelers breakdown (adults/children/infants), budget, inquiry type, nationality.',
       '',
-      'isComplete = true ONLY when BOTH name AND phone are known.',
-      'missingFields: human-readable labels for still-missing fields (from: name, phone, destination, start date, end date, travelers, budget).',
-      'whatsappGreeting: when isComplete=true, generate a warm professional WhatsApp message to send to the client confirming receipt + next steps. Otherwise "".',
+      '━━ DMC DOMAIN RULES — always apply ━━',
+      '1. INFANT RULE: Infants (0-23 months) fly on lap but need a separate infant fare. UAE entry requires at least one adult (18+) per infant. Always ask: "Are there any infants in the group?"',
+      '2. NATIONALITY CHECK: Visa requirements vary critically. Indians, Pakistanis, Bangladeshis, Filipinos need UAE visa (can get on arrival or pre-arranged). Nigerians and most African nationals face strict scrutiny — need proof of funds ($1000+/person), strong return ties, employment letter; high refusal rate; warn the agency. Always ask nationality.',
+      '3. TRAVELER COMPOSITION: Ask for exact split — "How many adults, children (ages), and infants?" This affects room allocation, visa costs, and activity eligibility.',
+      '4. ACTIVITY AGE LIMITS: Skydiving 18+. ATV/quad bikes 16+. Hot-air balloon 10+. Helicopter 4+. Aquaventure 2+. Always flag if group has children near the limits.',
+      '5. HOTEL PREFERENCES: Ask about star preference if not mentioned. 5-star, 4-star, budget? Any hotel requests?',
+      '6. SERVICES NEEDED: Always clarify if they need airport transfers, visas, desert safari, city tours, dhow cruise, theme parks, etc.',
       '',
-      'Current extracted data:',
+      '━━ HOTEL EXTRACTION ━━',
+      'When user mentions any hotel name or type, add to hotels[]. Infer star rating from name (Atlantis/Burj Al Arab = 5★, Marriott/Hilton = 4-5★, Holiday Inn = 3-4★).',
+      'Split-stay example: "3 nights Atlantis then 2 nights in JBR area" → two hotel entries.',
+      '',
+      '━━ SERVICE EXTRACTION & PRICING ━━',
+      'When a service is mentioned, classify as PRIVATE or SHARED:',
+      '  SHARED = one unit serves multiple people, cost divides by pax count (e.g., shared airport transfer, group desert safari, dhow cruise, group city tour)',
+      '  PRIVATE = each person/booking pays the full rate (e.g., visa per person, private transfer, private city tour)',
+      'SHARED pricing: pricePerPerson = (Math.ceil(pax / capacity) × basePricePerUnit) / pax',
+      'PRIVATE pricing: pricePerPerson = basePricePerUnit, total = basePricePerUnit × pax',
+      'Default rates to use when not stated (AED unless noted):',
+      '  - Airport Transfer sedan (4-pax): SHARED, capacity=4, base=200',
+      '  - Airport Transfer van/MPV (7-pax): SHARED, capacity=7, base=350',
+      '  - Desert Safari (shared group): SHARED, capacity=40, base=150/person → base=150, capacity=1 (per-person)',
+      '  - Dhow Cruise Dinner: SHARED, capacity=1 (per-person rate 130)',
+      '  - UAE 30-day Tourist Visa: PRIVATE, base=350/person',
+      '  - UAE 60-day Tourist Visa: PRIVATE, base=550/person',
+      '  - Private City Tour (half-day): PRIVATE, base=600/group',
+      '  - Desert Safari Private: PRIVATE, base=800/group',
+      '  - Burj Khalifa 124F ticket: PRIVATE, base=149/person',
+      '',
+      '━━ WHAT TO ASK IF MISSING ━━',
+      'After extracting what you can, ask ONE natural follow-up question for the most critical missing info.',
+      'Priority order: name → phone → destination → travel dates → traveler count → nationality.',
+      '',
+      '━━ CRITICAL RULES ━━',
+      '1. Return ONLY valid JSON. No markdown fences, no extra text before or after.',
+      '2. ALWAYS merge with existing data. Never erase already-extracted fields.',
+      '3. hotels[] and services[] MUST be populated whenever the user mentions hotels/activities/services — NEVER put this info in notes.',
+      '4. For multi-city trips: create ONE hotel entry per city (each with correct city, nights, checkIn, checkOut).',
+      '5. Calculate hotel dates sequentially: city1 checkIn=startDate, checkOut=startDate+nights1; city2 checkIn=city1.checkOut, checkOut=city2.checkIn+nights2.',
+      '6. travelers = adults + children + infants (total headcount).',
+      '7. destination = comma-separated city/country list (e.g. "Dubai, Doha").',
+      '8. isComplete = true ONLY when name AND phone are both known.',
+      '9. DO NOT put hotel info, city info, or service info in the notes field.',
+      '',
+      `EXAMPLE — if user says "Book Dubai + Doha trip for Parv Jain, 10-18 July, 2 pax (1 adult 1 child), 2 nights Dubai 4-star, 3 nights Doha 5-star, desert safari and skydiving":`,
+      `{"reply":"Got it Parv! Dubai (2 nights, 4★) + Doha (3 nights, 5★), 10–18 July, 1 adult + 1 child. Desert safari and skydiving in Dubai noted. Could you share your phone number?","extractedData":{"name":"Parv Jain","phone":null,"email":null,"companyName":null,"inquiryType":"TRAVEL_PACKAGE","source":"MANUAL","destination":"Dubai, Doha","startDate":"${this.today().slice(0, 4)}-07-10","endDate":"${this.today().slice(0, 4)}-07-18","budget":null,"travelers":2,"adults":1,"children":1,"infants":0,"nationality":null,"notes":null,"hotels":[{"city":"Dubai","name":"4-Star Hotel Dubai","checkIn":"${this.today().slice(0, 4)}-07-10","checkOut":"${this.today().slice(0, 4)}-07-12","nights":2,"rating":4,"roomCount":1},{"city":"Doha","name":"5-Star Hotel Doha","checkIn":"${this.today().slice(0, 4)}-07-12","checkOut":"${this.today().slice(0, 4)}-07-15","nights":3,"rating":5,"roomCount":1}],"services":[{"name":"Desert Safari","serviceType":"tour","pricingType":"SHARED","capacity":40,"basePricePerUnit":150,"currency":"AED","date":null,"notes":null},{"name":"Skydiving","serviceType":"activity","pricingType":"PRIVATE","capacity":null,"basePricePerUnit":1800,"currency":"AED","date":null,"notes":null}]},"isComplete":false,"missingFields":["phone"],"whatsappGreeting":""}`,
+      '',
+      'Current extracted data (merge with this, never overwrite non-null fields with null):',
       JSON.stringify(current, null, 2),
-      brainPrompt.trim() ? `\nAdditional instructions:\n${brainPrompt}` : '',
+      brainPrompt.trim() ? `\nOrg-specific instructions:\n${brainPrompt}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -467,15 +502,27 @@ export class AIService {
       { role: 'user', content: dto.message },
     ];
 
-    const raw = await this.provider.chat(messages, { temperature: 0.4, maxTokens: 800 });
+    const raw = await this.provider.chat(messages, { temperature: 0.3, maxTokens: 1200 });
 
     let parsed: LeadIntakeChatResponse;
     try {
       const jsonStr = raw.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '');
       const obj = JSON.parse(jsonStr) as Partial<LeadIntakeChatResponse>;
+      const merged = { ...current, ...((obj.extractedData as object) ?? {}) } as LeadIntakeChatResponse['extractedData'];
+      // Accumulate hotels and services arrays (never overwrite with empty)
+      if (Array.isArray((obj.extractedData as Record<string, unknown>)?.hotels)) {
+        merged.hotels = (obj.extractedData as Record<string, unknown>).hotels as LeadIntakeChatResponse['extractedData']['hotels'];
+      } else if (Array.isArray(current.hotels)) {
+        merged.hotels = current.hotels as LeadIntakeChatResponse['extractedData']['hotels'];
+      }
+      if (Array.isArray((obj.extractedData as Record<string, unknown>)?.services)) {
+        merged.services = (obj.extractedData as Record<string, unknown>).services as LeadIntakeChatResponse['extractedData']['services'];
+      } else if (Array.isArray(current.services)) {
+        merged.services = current.services as LeadIntakeChatResponse['extractedData']['services'];
+      }
       parsed = {
         reply: this.asString(obj.reply) ?? 'Got it! Could you share more details?',
-        extractedData: { ...current, ...((obj.extractedData as object) ?? {}) },
+        extractedData: merged,
         isComplete: Boolean(obj.isComplete),
         missingFields: Array.isArray(obj.missingFields) ? (obj.missingFields as string[]) : [],
         whatsappGreeting: this.asString(obj.whatsappGreeting) ?? undefined,
@@ -483,11 +530,14 @@ export class AIService {
     } catch {
       parsed = {
         reply: raw,
-        extractedData: current,
+        extractedData: current as unknown as LeadIntakeChatResponse['extractedData'],
         isComplete: false,
         missingFields: [],
       };
     }
+
+    // Enrich extracted hotels/services with real catalog data
+    parsed.extractedData = await this.enrichExtractedData(parsed.extractedData, actor);
 
     return parsed;
   }
@@ -538,6 +588,198 @@ export class AIService {
       return { summary, action: { type: 'none' } };
 
     return { summary, action };
+  }
+
+  async generateQuote(
+    dto: import('./dto/generate-quote.dto').GenerateQuoteDto,
+    actor: AuthenticatedUser,
+  ): Promise<import('./dto/generate-quote.dto').GenerateQuoteResult> {
+    const templatePrompt = await this.brain.getPrompt(actor, 'whatsapp_quote_template');
+    const currency = dto.currency ?? 'AED';
+    const markup = dto.markup ?? 0;
+    const validityHours = dto.validityHours ?? 48;
+    const travelers = dto.travelers;
+    const services = dto.services ?? [];
+
+    // Deterministic pricing: services cost per person (shared across all hotel options)
+    const servicesPerPerson = services.reduce((sum, svc) => {
+      if (svc.pricePerPerson != null) return sum + svc.pricePerPerson;
+      if (!svc.basePricePerUnit) return sum;
+      if (svc.pricingType === 'SHARED') {
+        const cap = svc.capacity ?? 1;
+        const units = Math.ceil(travelers / cap);
+        return sum + (units * svc.basePricePerUnit) / travelers;
+      }
+      return sum + svc.basePricePerUnit;
+    }, 0);
+
+    // Pricing per hotel option
+    const hotelPricing: import('./dto/generate-quote.dto').QuoteHotelResult[] = dto.hotels.map((h) => {
+      const nights = h.nights ?? 1;
+      const rooms = h.rooms ?? 1;
+      let hotelPerPerson: number;
+      if (h.pricePerPerson != null) {
+        hotelPerPerson = h.pricePerPerson;
+      } else if (h.pricePerNight != null) {
+        hotelPerPerson = (h.pricePerNight * rooms * nights) / travelers;
+      } else {
+        // auto-price from hash + stars
+        const stars = h.stars ?? 4;
+        const ranges: Record<number, [number, number]> = {
+          5: [800, 1200], 4: [400, 700], 3: [200, 350], 2: [100, 200], 1: [60, 100],
+        };
+        const [min, max] = ranges[Math.round(stars)] ?? [200, 400];
+        let hash = 0;
+        for (let i = 0; i < h.name.length; i++) hash = (hash * 31 + h.name.charCodeAt(i)) & 0xffffffff;
+        const pricePerNight = min + (Math.abs(hash) % (max - min + 1));
+        hotelPerPerson = (pricePerNight * rooms * nights) / travelers;
+      }
+      const base = hotelPerPerson + servicesPerPerson;
+      const withMarkup = markup > 0 ? base * (1 + markup / 100) : base;
+      const totalPerPerson = Math.round(withMarkup);
+      return {
+        name: h.name,
+        stars: h.stars,
+        location: h.location,
+        roomType: h.roomType,
+        nights,
+        rooms,
+        basePricePerPerson: Math.round(hotelPerPerson),
+        servicesPricePerPerson: Math.round(servicesPerPerson),
+        totalPricePerPerson: totalPerPerson,
+        totalPrice: totalPerPerson * travelers,
+        currency,
+      };
+    });
+
+    // Format dates
+    const formatDate = (d?: string) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    };
+    const dateRange = dto.startDate
+      ? `${formatDate(dto.startDate)}${dto.endDate ? `–${formatDate(dto.endDate)}` : ''}`
+      : '';
+
+    const serviceNames = services.map((s) => s.name);
+
+    const defaultTemplate = `You are generating a WhatsApp quote message for a DMC package. Follow this EXACT format (use WhatsApp bold with *text*, emojis, no HTML):
+
+*{DESTINATION} Package{DATE_RANGE}*
+For: {CUSTOMER_NAME}{COMPANY}
+
+{HOTEL_OPTIONS}
+*Includes:* {SERVICES}
+
+⚠️ {VALIDITY} hours validity · Non refundable · Subject to availability
+
+To confirm: names + passports
+— {BRAND_NAME}{AGENT}`;
+
+    const systemMsg = templatePrompt?.trim()
+      ? `${templatePrompt}\n\nAlso follow these format rules: use WhatsApp bold (*text*), emojis (📍, ⭐, ✅, ⚠️), no HTML. Each hotel is a numbered option with name, stars, location, room type, and price per person.`
+      : defaultTemplate;
+
+    const hotelLines = hotelPricing
+      .map(
+        (h, i) =>
+          `${i + 1}. ${h.name}${h.stars ? ` (${h.stars}★)` : ''}${h.location ? `\n   📍 ${h.location}` : ''}${h.roomType ? `\n   ${h.roomType}` : ''}\n   ${currency} ${h.totalPricePerPerson.toLocaleString()}/person`,
+      )
+      .join('\n\n');
+
+    const prompt = [
+      `Generate a WhatsApp quote message for this DMC package:`,
+      `Destination: ${dto.destination}`,
+      `Dates: ${dateRange || 'TBD'}`,
+      `Travelers: ${travelers} (${dto.adults ?? travelers} adults${dto.children ? `, ${dto.children} children` : ''})`,
+      `Customer: ${dto.customerName}${dto.companyName ? ` (${dto.companyName})` : ''}`,
+      `Hotel options and pricing (${currency}):`,
+      hotelLines,
+      serviceNames.length > 0 ? `Included services: ${serviceNames.join(', ')}` : '',
+      `Quote validity: ${validityHours} hours`,
+      `DMC Brand: ${dto.brandName ?? 'Easy Go Venture Tourism'}`,
+      dto.agentName ? `Agent: ${dto.agentName}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const raw = await this.provider.chat(
+      [
+        { role: 'system', content: systemMsg },
+        { role: 'user', content: prompt },
+      ],
+      { temperature: 0.3, maxTokens: 800 },
+    );
+
+    return { message: raw.trim(), hotelPricing, currency, validityHours };
+  }
+
+  private async enrichExtractedData(
+    data: LeadIntakeChatResponse['extractedData'],
+    actor: AuthenticatedUser,
+  ): Promise<LeadIntakeChatResponse['extractedData']> {
+    const destination = data.destination ?? 'Dubai';
+    const primaryCity = destination.split(',')[0].trim();
+
+    // Enrich hotels: match generic "4-Star Hotel Dubai" with actual catalog names
+    if (data.hotels?.length) {
+      data.hotels = await Promise.all(
+        data.hotels.map(async (h) => {
+          try {
+            const city = h.city ?? primaryCity;
+            const starRating = h.rating ? (Math.round(h.rating) as 3 | 4 | 5) : undefined;
+            // Only search by name if it's a real hotel name (not "4-star hotel ...")
+            const isGenericName = !h.name || /\d[\s-]*star/i.test(h.name);
+            const results = await this.hotelsService.findAll(
+              Object.assign(Object.create(null), { city, starRating, search: isGenericName ? undefined : h.name, limit: 1, page: 1, sortOrder: 'desc' }) as import('../hotels/dto/query-hotel.dto').QueryHotelDto,
+            );
+            const match = results.data[0];
+            if (match) {
+              return {
+                ...h,
+                name: match.name,
+                rating: 'starRating' in match ? match.starRating : (h.rating ?? 4),
+                city: 'city' in match ? match.city : city,
+              };
+            }
+          } catch {
+            // DB unavailable — return as-is
+          }
+          return h;
+        }),
+      );
+    }
+
+    // Enrich services: get real pricing from catalog
+    if (data.services?.length) {
+      data.services = await Promise.all(
+        data.services.map(async (s) => {
+          if (!s.name) return s;
+          try {
+            const results = await this.servicesService.findAll(
+              Object.assign(Object.create(null), { search: s.name, destination: primaryCity, isActive: 'true', limit: 1, page: 1, sortOrder: 'desc' }) as import('../service-catalog/dto/query-service.dto').QueryServiceDto,
+              actor,
+            );
+            const match = results.data[0];
+            if (match) {
+              const price = match.defaultSellPrice ?? match.basePrice;
+              return {
+                ...s,
+                name: match.name,
+                basePricePerUnit: price != null ? price : s.basePricePerUnit,
+                currency: match.currency ?? s.currency ?? 'AED',
+              };
+            }
+          } catch {
+            // DB unavailable — return as-is
+          }
+          return s;
+        }),
+      );
+    }
+
+    return data;
   }
 
   /** Current date as YYYY-MM-DD, injected so the model can resolve relative dates. */

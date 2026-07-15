@@ -17,6 +17,7 @@ import type { LeadServiceItem, Service } from '@shared/types/domain';
  * as the variantGroup so the requirement reads as fulfilled.
  */
 function serviceToSnapshot(s: Service, requirement?: string): LeadServiceItem {
+  const base = s.defaultSellPrice ?? s.basePrice;
   return {
     serviceId: s.id,
     serviceName: s.name,
@@ -25,7 +26,9 @@ function serviceToSnapshot(s: Service, requirement?: string): LeadServiceItem {
     supplier: s.supplier,
     currency: s.currency,
     costPrice: s.costPrice,
-    sellPrice: s.defaultSellPrice ?? s.basePrice,
+    sellPrice: base,
+    basePricePerUnit: base,
+    pricingType: 'PRIVATE',
     snapshotDate: new Date().toISOString(),
   };
 }
@@ -82,7 +85,7 @@ export function ServicePickerModal({
   const addCustom = () => {
     const name = custom.trim();
     if (!name) return;
-    onAdd({ serviceName: name, variantGroup: requirement, snapshotDate: new Date().toISOString() });
+    onAdd({ serviceName: name, variantGroup: requirement, pricingType: 'PRIVATE', snapshotDate: new Date().toISOString() });
     setCustom('');
   };
 

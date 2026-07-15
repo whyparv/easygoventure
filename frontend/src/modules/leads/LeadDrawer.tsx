@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Bot,
-  Building2,
   CheckCircle2,
   DollarSign,
   Hotel,
@@ -51,7 +50,7 @@ import { useCreateFollowup, useUpdateFollowup } from '@shared/mutations/followup
 import { useUpdateFulfillment } from '@shared/mutations/fulfillments.mutations';
 import { LeadOverviewTab } from './LeadOverviewTab';
 import { leadDisplayName } from './lead-display';
-import { useFollowupSuggestion, useLeadChat } from '@shared/mutations/ai.mutations';
+import { useLeadChat } from '@shared/mutations/ai.mutations';
 import {
   FlightClass,
   FlightType,
@@ -243,16 +242,7 @@ function LeadDrawerBody({ lead, onClose }: { lead: Lead; onClose: () => void }) 
 }
 
 
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value || '-'}</span>
-    </div>
-  );
-}
-
-// ── Itinerary (Locations + Hotels per location) ───────────────────────────────
+// ── Itinerary (Locations + Hotels per location) ────────────────────────────────
 
 // Auto-price a hotel based on star rating (deterministic via name hash)
 function autoPricePerNight(hotelName: string, rating?: number): number {
@@ -574,7 +564,7 @@ function LocationCard({
         ) : (
           <div className="space-y-2">
             {loc.hotels?.map((h, i) => (
-              <HotelRow key={i} hotel={h} index={i} onUpdate={(p) => updateHotel(i, p)} onRemove={() => removeHotel(i)} />
+              <HotelRow key={i} hotel={h} onUpdate={(p) => updateHotel(i, p)} onRemove={() => removeHotel(i)} />
             ))}
           </div>
         )}
@@ -585,12 +575,10 @@ function LocationCard({
 
 function HotelRow({
   hotel,
-  index,
   onUpdate,
   onRemove,
 }: {
   hotel: LeadHotel;
-  index: number;
   onUpdate: (patch: Partial<LeadHotel>) => void;
   onRemove: () => void;
 }) {

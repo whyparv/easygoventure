@@ -26,7 +26,7 @@ export class BrainService {
         organizationId,
         section,
         label: this.defaultLabel(section),
-        prompt: '',
+        prompt: this.defaultPrompt(section),
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
@@ -38,10 +38,10 @@ export class BrainService {
     return this.model.findOne({ organizationId, section }).lean().exec();
   }
 
-  /** Returns the prompt string for a section (empty string if not configured). */
+  /** Returns the prompt string for a section (falls back to built-in default if not configured). */
   async getPrompt(actor: AuthenticatedUser, section: string): Promise<string> {
     const doc = await this.getSection(actor, section);
-    return doc?.prompt ?? '';
+    return doc?.prompt || this.defaultPrompt(section);
   }
 
   async upsert(
@@ -70,5 +70,31 @@ export class BrainService {
 
   private defaultLabel(section: string): string {
     return section.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  private defaultPrompt(section: string): string {
+    if (section === 'whatsapp_quote_template') {
+      return `Generate a WhatsApp-formatted DMC package quote. Use this EXACT format:
+
+*{DESTINATION} Package — {DATE_RANGE} | {TRAVELERS} pax*
+For: {CUSTOMER_NAME}{COMPANY}
+
+{HOTEL_OPTIONS_NUMBERED}
+
+*Includes:* {SERVICE_LIST}
+
+⚠️ {VALIDITY_HOURS} hours validity · Non refundable · Subject to availability
+
+To confirm: names + passports
+— {BRAND_NAME}{AGENT_NAME}
+
+Rules:
+- Use WhatsApp bold (*text*) for headings and hotel names
+- Each hotel option: number, name (stars★), 📍 location on next line, room type, then price per person
+- Mark selected/recommended hotel with ✅
+- Services list separated by ·
+- Keep it clean and professional`;
+    }
+    return '';
   }
 }

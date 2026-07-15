@@ -10,6 +10,7 @@ export const BRAIN_SECTIONS = [
   'inquiries',
   'ai_chat',
   'operations',
+  'whatsapp_quote_template',
 ] as const;
 export type BrainSection = (typeof BRAIN_SECTIONS)[number] | string;
 

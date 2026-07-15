@@ -4,6 +4,7 @@ import { ApiError } from '@shared/api/http';
 import {
   aiService,
   type ChatInput,
+  type GenerateQuoteInput,
   type LeadChatInput,
   type LeadIntakeChatInput,
   type FollowupSuggestionInput,
@@ -52,6 +53,13 @@ export function useLeadChat() {
 export function useLeadIntakeChat() {
   return useMutation({
     mutationFn: (input: LeadIntakeChatInput) => aiService.leadIntakeChat(input),
+    onError,
+  });
+}
+
+export function useGenerateQuote() {
+  return useMutation({
+    mutationFn: (input: GenerateQuoteInput) => aiService.generateQuote(input),
     onError,
   });
 }

@@ -20,4 +20,5 @@ export class QueryHotelDto extends PaginationDto {
   @IsString()
   @IsOptional()
   city?: string;
+
 }

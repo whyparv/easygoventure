@@ -2,20 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   ClipboardList,
-  ConciergeBell,
   Lightbulb,
   MessageCircle,
   Plus,
   Save,
   Star,
   Trash2,
+  Wrench,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { servicesService } from '@shared/services/services.service';
 import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
 import { Select } from '@shared/components/ui/select';
 import { useUpdateLead } from '@shared/mutations/leads.mutations';
 import { useAuthStore } from '@shared/stores/auth.store';
-import { formatCurrency } from '@shared/lib/format';
 import type { UpdateLeadInput } from '@shared/services/leads.service';
 import type { Lead, LeadHotelOption, LeadServiceItem } from '@shared/types/domain';
 import { AgencyAutocomplete } from './AgencyAutocomplete';
@@ -225,6 +226,7 @@ export function LeadOverviewTab({ lead }: { lead: Lead }) {
           value={form.serviceItems}
           onChange={(v) => set('serviceItems', v)}
           destination={form.destination}
+          pax={Math.max(1, (Number(form.adults) || 0) + (Number(form.children) || 0))}
           suggestions={requestedServices.filter((s) => !isRequirementFulfilled(s, form.serviceItems))}
         />
       </Section>
@@ -412,23 +414,24 @@ function OriginalInquiry({ raw }: { raw?: string }) {
 }
 
 /**
- * Catalog-driven service selection. Attached services are snapshots (name + price)
- * shown as chips; "Add Service" opens the searchable catalog picker. Client-
- * requested services surface as one-click suggestions (matched to the catalog).
+ * Editable service rows — each item shows pricing type (PRIVATE/SHARED), capacity,
+ * base price, and auto-calculated per-person cost. "Add Service" opens the catalog
+ * picker; "requested" suggestions are one-click adds.
  */
 function ServicesPicker({
   value,
   onChange,
   destination,
+  pax,
   suggestions = [],
 }: {
   value: LeadServiceItem[];
   onChange: (v: LeadServiceItem[]) => void;
   destination?: string;
+  pax: number;
   suggestions?: string[];
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  // The generic requirement the picker is currently fulfilling (null = plain "Add Service").
   const [requirement, setRequirement] = useState<string | null>(null);
 
   const has = (name: string) =>
@@ -438,6 +441,23 @@ function ServicesPicker({
     if (has(item.serviceName)) return;
     onChange([...value, item]);
   };
+
+  const updateAt = (i: number, patch: Partial<LeadServiceItem>) => {
+    const updated = { ...value[i], ...patch };
+    // Auto-recalculate sellPrice when pricing inputs change
+    const base = updated.basePricePerUnit;
+    if (base != null && base > 0) {
+      if (updated.pricingType === 'SHARED') {
+        const cap = updated.capacity ?? 1;
+        const units = Math.ceil(pax / cap);
+        updated.sellPrice = Math.round((units * base) / pax);
+      } else {
+        updated.sellPrice = base;
+      }
+    }
+    onChange(value.map((v, idx) => (idx === i ? updated : v)));
+  };
+
   const removeAt = (i: number) => onChange(value.filter((_, idx) => idx !== i));
 
   const openPicker = (req: string | null) => {
@@ -447,28 +467,21 @@ function ServicesPicker({
 
   return (
     <div className="space-y-3">
-      {/* A requirement is generic (e.g. "Airport Transfer"); clicking it opens the
-          catalog to choose a specific variant — it is never auto-selected. */}
       <SuggestionRow label="Requested by client — pick a variant" items={suggestions} onAdd={openPicker} />
 
       {value.length === 0 ? (
         <p className="text-sm text-muted-foreground">No services yet. Add from the catalog to build the quote.</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {value.map((s, i) => (
-            <span
-              key={`${s.serviceName}-${i}`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm text-primary"
-            >
-              <ConciergeBell className="size-3.5" />
-              {s.serviceName}
-              {s.sellPrice != null && (
-                <span className="text-xs opacity-70">{formatCurrency(s.sellPrice, s.currency)}</span>
-              )}
-              <button type="button" onClick={() => removeAt(i)} aria-label={`Remove ${s.serviceName}`}>
-                <Trash2 className="size-3.5 opacity-60 hover:opacity-100" />
-              </button>
-            </span>
+        <div className="space-y-2.5">
+          {value.map((svc, i) => (
+            <ServiceItemRow
+              key={`${svc.serviceName}-${i}`}
+              item={svc}
+              pax={pax}
+              destination={destination}
+              onUpdate={(patch) => updateAt(i, patch)}
+              onRemove={() => removeAt(i)}
+            />
           ))}
         </div>
       )}
@@ -485,6 +498,193 @@ function ServicesPicker({
         onAdd={add}
         requirement={requirement ?? undefined}
       />
+    </div>
+  );
+}
+
+function ServiceItemRow({
+  item, pax, destination, onUpdate, onRemove,
+}: {
+  item: LeadServiceItem;
+  pax: number;
+  destination?: string;
+  onUpdate: (patch: Partial<LeadServiceItem>) => void;
+  onRemove: () => void;
+}) {
+  const pricingType = item.pricingType ?? 'PRIVATE';
+  const capacity = item.capacity ?? 1;
+  const base = item.basePricePerUnit ?? 0;
+  const currency = item.currency ?? 'AED';
+
+  let calculatedLabel = '';
+  if (base > 0) {
+    if (pricingType === 'SHARED') {
+      const units = Math.ceil(pax / capacity);
+      const perPerson = Math.round((units * base) / pax);
+      calculatedLabel = `${units} unit(s) × ${currency} ${base} ÷ ${pax} pax = ${currency} ${perPerson}/pax`;
+    } else {
+      calculatedLabel = `${currency} ${base} × ${pax} pax = ${currency} ${base * pax} total`;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2.5">
+      {/* Name row */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <ServiceInlineSearch
+            value={item.serviceName}
+            destination={destination}
+            onValueChange={(v) => onUpdate({ serviceName: v })}
+            onSelect={(s) => onUpdate({
+              serviceName: s.name,
+              basePricePerUnit: s.defaultSellPrice ?? s.basePrice ?? undefined,
+              currency: s.currency ?? item.currency,
+              costPrice: s.costPrice,
+              sellPrice: s.defaultSellPrice ?? s.basePrice ?? undefined,
+            })}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="shrink-0 text-muted-foreground hover:text-danger"
+          aria-label="Remove service"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      </div>
+
+      {/* Config row: pricing type + capacity + base price + currency */}
+      <div className="grid grid-cols-4 gap-2">
+        <div>
+          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">Pricing</label>
+          <select
+            value={pricingType}
+            onChange={(e) => onUpdate({ pricingType: e.target.value as 'PRIVATE' | 'SHARED' })}
+            className="w-full h-8 rounded border border-input bg-background px-2 text-xs outline-none focus:border-primary"
+          >
+            <option value="PRIVATE">PRIVATE</option>
+            <option value="SHARED">SHARED</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
+            {pricingType === 'SHARED' ? 'Max pax/unit' : 'Base price'}
+          </label>
+          {pricingType === 'SHARED' ? (
+            <Input
+              type="number"
+              min={1}
+              value={capacity || ''}
+              onChange={(e) => onUpdate({ capacity: e.target.value ? Number(e.target.value) : undefined })}
+              placeholder="4"
+              className="h-8 text-xs"
+            />
+          ) : (
+            <Input
+              type="number"
+              min={0}
+              value={base || ''}
+              onChange={(e) => onUpdate({ basePricePerUnit: e.target.value ? Number(e.target.value) : undefined })}
+              placeholder="0"
+              className="h-8 text-xs"
+            />
+          )}
+        </div>
+
+        {pricingType === 'SHARED' && (
+          <div>
+            <label className="mb-1 block text-[10px] font-medium text-muted-foreground">Base price</label>
+            <Input
+              type="number"
+              min={0}
+              value={base || ''}
+              onChange={(e) => onUpdate({ basePricePerUnit: e.target.value ? Number(e.target.value) : undefined })}
+              placeholder="0"
+              className="h-8 text-xs"
+            />
+          </div>
+        )}
+
+        <div className={pricingType === 'SHARED' ? '' : 'col-span-2'}>
+          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">Currency</label>
+          <select
+            value={currency}
+            onChange={(e) => onUpdate({ currency: e.target.value })}
+            className="w-full h-8 rounded border border-input bg-background px-2 text-xs outline-none focus:border-primary"
+          >
+            {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Calculated pricing summary */}
+      {base > 0 && (
+        <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5">
+          <span className={`text-[10px] font-medium ${pricingType === 'SHARED' ? 'text-info' : 'text-warning'}`}>
+            {pricingType === 'SHARED' ? '⇄ SHARED' : '⊕ PRIVATE'} · {calculatedLabel}
+          </span>
+          {item.sellPrice != null && (
+            <span className="text-xs font-bold text-primary">{currency} {item.sellPrice}/pax</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Inline debounced service search with dropdown — mirrors the one in LeadCreateDialog. */
+function ServiceInlineSearch({
+  value, destination, onValueChange, onSelect,
+}: {
+  value: string;
+  destination?: string;
+  onValueChange: (v: string) => void;
+  onSelect: (s: import('@shared/types/domain').Service) => void;
+}) {
+  const [q, setQ] = useState(value);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => { setQ(value); }, [value]);
+
+  const { data } = useQuery({
+    queryKey: ['services', 'inline-search', q, destination],
+    queryFn: () => servicesService.search({ search: q, destination, limit: 6 }),
+    enabled: q.trim().length > 1,
+    staleTime: 30_000,
+  });
+  const results = data?.items ?? [];
+
+  return (
+    <div className="relative">
+      <Input
+        value={q}
+        onChange={(e) => { setQ(e.target.value); onValueChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        placeholder="Service name…"
+        className="h-8 text-sm"
+      />
+      {open && results.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-0.5 rounded-lg border border-border bg-card shadow-xl max-h-48 overflow-y-auto">
+          {results.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted transition-colors"
+              onMouseDown={() => { onSelect(s); setQ(s.name); setOpen(false); }}
+            >
+              <Wrench className="size-3 shrink-0 text-muted-foreground" />
+              <span className="flex-1 font-medium">{s.name}</span>
+              <span className="shrink-0 text-muted-foreground">
+                {s.currency} {(s.defaultSellPrice ?? s.basePrice ?? 0).toLocaleString()}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

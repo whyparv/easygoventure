@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
 import { Modal } from '@shared/components/ui/modal';
 import { Button } from '@shared/components/ui/button';
 import { buildWhatsAppQuote, whatsappDeepLink } from '@shared/lib/whatsapp';
+import { leadsService } from '@shared/services/leads.service';
 import type { Lead } from '@shared/types/domain';
 
 /**
- * Preview + share the generated WhatsApp quote for a lead. The message is built
- * purely from the lead record (travel info, services, hotel options, validity,
- * preparedBy) — no AI round-trip required for the manual workflow.
+ * Preview + share the generated WhatsApp quote for a lead. Saves the generated
+ * message as a WHATSAPP_MESSAGE activity when the user copies or opens it.
  */
 export function WhatsAppQuoteModal({
   open,
@@ -22,11 +23,21 @@ export function WhatsAppQuoteModal({
   const [copied, setCopied] = useState(false);
   const message = buildWhatsAppQuote(lead);
 
+  const saveActivity = useMutation({
+    mutationFn: () =>
+      leadsService.addActivity(lead.id, {
+        type: 'WHATSAPP_MESSAGE',
+        description: 'WhatsApp quote generated',
+        metadata: { message },
+      }),
+  });
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(message);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
+      saveActivity.mutate();
     } catch {
       setCopied(false);
     }
@@ -46,7 +57,12 @@ export function WhatsAppQuoteModal({
             {copied ? 'Copied' : 'Copy'}
           </Button>
           <Button asChild>
-            <a href={whatsappDeepLink(lead.phone, message)} target="_blank" rel="noreferrer">
+            <a
+              href={whatsappDeepLink(lead.phone, message)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => saveActivity.mutate()}
+            >
               <ExternalLink className="size-4" /> Open in WhatsApp
             </a>
           </Button>

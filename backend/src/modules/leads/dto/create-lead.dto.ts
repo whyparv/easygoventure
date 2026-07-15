@@ -8,6 +8,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -343,6 +344,23 @@ export class LeadServiceItemDto {
   @IsNumber()
   @Min(0)
   sellPrice?: number;
+
+  @ApiPropertyOptional({ example: 200, minimum: 0, description: 'Base price per booking unit (used with pricingType to compute sellPrice)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  basePricePerUnit?: number;
+
+  @ApiPropertyOptional({ enum: ['PRIVATE', 'SHARED'], default: 'PRIVATE' })
+  @IsOptional()
+  @IsIn(['PRIVATE', 'SHARED'])
+  pricingType?: string;
+
+  @ApiPropertyOptional({ example: 4, minimum: 1, description: 'Max pax per unit for SHARED services' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  capacity?: number;
 
   @ApiPropertyOptional({ format: 'date-time' })
   @IsOptional()

@@ -21,8 +21,17 @@ export interface CreateServiceInput {
 
 export type UpdateServiceInput = Partial<CreateServiceInput>;
 
+export interface ServiceSearchParams {
+  search?: string;
+  destination?: string;
+  categoryCode?: string;
+  limit?: number;
+}
+
 export const servicesService = {
   list: (params: ListParams) => http.get<Paginated<Service>>('/services', params),
+  search: (params: ServiceSearchParams) =>
+    http.get<Paginated<Service>>('/services', { ...params, isActive: 'true' } as Record<string, unknown>),
   get: (id: string) => http.get<Service>(`/services/${id}`),
   create: (input: CreateServiceInput) => http.post<Service>('/services', input),
   update: (id: string, input: UpdateServiceInput) => http.patch<Service>(`/services/${id}`, input),

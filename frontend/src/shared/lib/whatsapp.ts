@@ -4,7 +4,7 @@
 // no marketing copy, no deposit text, no long descriptions. It always ends with
 //   — Easy Go Venture Tourism (by {preparedBy})
 // so the client can track who prepared / closed each quote.
-import type { Lead, LeadHotelOption } from '@shared/types/domain';
+import type { Lead, LeadHotelOption, LeadServiceItem } from '@shared/types/domain';
 
 const CURRENCY_SYMBOL: Record<string, string> = {
   USD: '$',
@@ -16,7 +16,6 @@ const CURRENCY_SYMBOL: Record<string, string> = {
 
 function money(amount: number, currency = 'USD'): string {
   const sym = CURRENCY_SYMBOL[currency.toUpperCase()] ?? `${currency.toUpperCase()} `;
-  // Drop trailing .00 for whole numbers.
   const value = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
   return `${sym}${value}`;
 }
@@ -30,7 +29,6 @@ function shortDate(iso?: string): string | null {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
-/** "15 Jun–19 Jun", or a single date, or empty. */
 function dateRange(travelDate?: string, returnDate?: string): string {
   const a = shortDate(travelDate);
   const b = shortDate(returnDate);
@@ -53,21 +51,21 @@ function hotelBlock(option: LeadHotelOption, index: number, currency: string): s
   return lines.join('\n');
 }
 
+function serviceAddOnLine(svc: LeadServiceItem, fallbackCurrency: string): string {
+  const cur = svc.currency ?? fallbackCurrency;
+  return `🔸 ${svc.serviceName} — ${money(svc.sellPrice!, cur)}/pax`;
+}
+
 export interface WhatsAppQuoteOptions {
-  /** Falls back to lead.preparedBy, then to this, when signing the quote. */
   staffName?: string;
 }
 
-/**
- * Render the WhatsApp-ready quote for a lead. Pure — safe to unit test and to
- * call on every render for a live preview.
- */
 export function buildWhatsAppQuote(lead: Lead, opts: WhatsAppQuoteOptions = {}): string {
   const currency = lead.currency ?? 'USD';
   const pax = (lead.adults ?? 0) + (lead.children ?? 0);
   const blocks: string[] = [];
 
-  // Header — "*Dubai Package — 15 Jun–19 Jun | 2 pax*"
+  // ── Header ─────────────────────────────────────────────────────────────────
   const range = dateRange(lead.travelDate, lead.returnDate);
   const titleParts = [`${lead.destination ? `${lead.destination} ` : ''}Package`, range]
     .filter(Boolean)
@@ -75,21 +73,27 @@ export function buildWhatsAppQuote(lead: Lead, opts: WhatsAppQuoteOptions = {}):
   const header = [titleParts, pax > 0 ? `${pax} pax` : ''].filter(Boolean).join(' | ');
   blocks.push(`*${header}*`);
 
-  // Recipient — "For: Chukwudi Emmanuel (Travel Connect)"
-  const forLine = `For: ${lead.name}${lead.companyName ? ` (${lead.companyName})` : ''}`;
-  blocks.push(forLine);
+  // ── Recipient ──────────────────────────────────────────────────────────────
+  blocks.push(`For: ${lead.name}${lead.companyName ? ` (${lead.companyName})` : ''}`);
 
-  // Hotel options
+  // ── Hotel options ──────────────────────────────────────────────────────────
   const hotels = lead.hotelOptions ?? [];
   if (hotels.length > 0) {
     blocks.push(hotels.map((h, i) => hotelBlock(h, i, currency)).join('\n\n'));
   }
 
-  // Includes — nights + breakfast + selected services + taxes.
-  // Prefer catalog service snapshots; fall back to legacy string services.
+  // ── Priced services (shown as add-ons with per-person cost) ─────────────────
+  const serviceItems = lead.serviceItems ?? [];
+  const pricedAddOns = serviceItems.filter((s) => s.sellPrice != null && s.sellPrice > 0);
+  if (pricedAddOns.length > 0) {
+    const lines = pricedAddOns.map((s) => serviceAddOnLine(s, currency));
+    blocks.push(`*Add-ons per person:*\n${lines.join('\n')}`);
+  }
+
+  // ── Includes list ──────────────────────────────────────────────────────────
   const serviceNames =
-    lead.serviceItems && lead.serviceItems.length > 0
-      ? lead.serviceItems.map((s) => s.serviceName)
+    serviceItems.length > 0
+      ? serviceItems.map((s) => s.serviceName)
       : (lead.services ?? []);
   const includes = [
     lead.nights ? `${lead.nights} Nights accommodation` : null,
@@ -99,20 +103,34 @@ export function buildWhatsAppQuote(lead: Lead, opts: WhatsAppQuoteOptions = {}):
   ].filter(Boolean);
   blocks.push(`*Includes:* ${includes.join(' · ')}`);
 
-  // Validity + terms
+  // ── Package total (recommended hotel + same-currency services) ─────────────
+  const recommended = hotels.find((h) => h.recommended) ?? hotels[0];
+  if (recommended?.pricePerPerson != null) {
+    const sameCurrencyServiceTotal = pricedAddOns
+      .filter((s) => (s.currency ?? currency).toUpperCase() === currency.toUpperCase())
+      .reduce((sum, s) => sum + (s.sellPrice ?? 0), 0);
+    const total = recommended.pricePerPerson + sameCurrencyServiceTotal;
+    const hasExtra = pricedAddOns.some(
+      (s) => (s.currency ?? currency).toUpperCase() !== currency.toUpperCase(),
+    );
+    blocks.push(
+      `💰 *Package from ${money(total, currency)}/person*${hasExtra ? ' + cross-currency services' : ''}`,
+    );
+  }
+
+  // ── Validity + terms ───────────────────────────────────────────────────────
   const validity = lead.quoteValidityHours ?? 48;
   blocks.push(`⚠️ ${validity} hours validity · Non refundable · Subject to availability`);
 
   blocks.push('To confirm: names + passports');
 
-  // Signature — who prepared the quote
+  // ── Signature ──────────────────────────────────────────────────────────────
   const staff = lead.preparedBy || opts.staffName;
   blocks.push(`— Easy Go Venture Tourism${staff ? ` (by ${staff})` : ''}`);
 
   return blocks.join('\n\n');
 }
 
-/** wa.me deep link that opens the message in WhatsApp for a given phone. */
 export function whatsappDeepLink(phone: string | undefined, message: string): string {
   const digits = (phone ?? '').replace(/[^\d]/g, '');
   const text = encodeURIComponent(message);

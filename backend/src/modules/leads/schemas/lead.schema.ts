@@ -98,6 +98,18 @@ export class LeadServiceItem {
   @Prop({ type: Number, min: 0 })
   sellPrice?: number;
 
+  /** Base price per booking unit — used with pricingType to compute sellPrice. */
+  @Prop({ type: Number, min: 0 })
+  basePricePerUnit?: number;
+
+  /** PRIVATE = full cost per person; SHARED = cost split by pax (with optional capacity). */
+  @Prop({ type: String, enum: ['PRIVATE', 'SHARED'], default: 'PRIVATE' })
+  pricingType?: string;
+
+  /** Max pax per unit for SHARED services (e.g. 4 for a shared van). */
+  @Prop({ type: Number, min: 1 })
+  capacity?: number;
+
   @Prop({ type: Date, default: () => new Date() })
   snapshotDate?: Date;
 }

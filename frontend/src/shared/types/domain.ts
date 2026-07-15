@@ -98,6 +98,12 @@ export interface LeadServiceItem {
   currency?: string;
   costPrice?: number;
   sellPrice?: number;
+  /** Base price per booking unit — used with pricingType to compute sellPrice. */
+  basePricePerUnit?: number;
+  /** PRIVATE = full cost per person; SHARED = cost split by pax (with optional capacity). */
+  pricingType?: 'PRIVATE' | 'SHARED';
+  /** Max pax per unit for SHARED services (e.g. 4 for a shared van). */
+  capacity?: number;
   snapshotDate?: string;
 }
 

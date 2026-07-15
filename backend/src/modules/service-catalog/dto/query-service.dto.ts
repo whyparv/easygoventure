@@ -26,4 +26,5 @@ export class QueryServiceDto extends PaginationDto {
   @IsString()
   @IsIn(['true', 'false'])
   isActive?: string;
+
 }

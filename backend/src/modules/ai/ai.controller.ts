@@ -16,6 +16,7 @@ import { NextActionDto } from './dto/next-action.dto';
 import { ProposalDraftDto } from './dto/proposal-draft.dto';
 import { LeadChatDto } from './dto/lead-chat.dto';
 import { LeadIntakeChatDto } from './dto/lead-intake-chat.dto';
+import { GenerateQuoteDto } from './dto/generate-quote.dto';
 import {
   ChatResponseDto,
   FollowupSuggestionResponseDto,
@@ -91,5 +92,12 @@ export class AIController {
   async leadIntakeChat(@Body() dto: LeadIntakeChatDto, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.aiService.leadIntakeChat(dto, user);
     return new ApiResponse(result, 'Lead intake reply generated');
+  }
+
+  @Post('generate-quote')
+  @ApiOperation({ summary: 'Generate a formatted WhatsApp quote message with calculated pricing' })
+  async generateQuote(@Body() dto: GenerateQuoteDto, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.aiService.generateQuote(dto, user);
+    return new ApiResponse(result, 'Quote generated');
   }
 }

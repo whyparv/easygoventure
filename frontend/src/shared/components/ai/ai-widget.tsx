@@ -157,19 +157,6 @@ function ChatPanel() {
       </div>
 
 
-      {action && aiContext?.entity && (
-        <ActionCard
-          nextAction={action}
-          leadId={aiContext.entity.id}
-          onDismiss={() => setAction(null)}
-          onApplied={(label) => {
-            setAction(null);
-            setMessages((prev) => [...prev, { role: 'assistant', content: `✅ Done - ${label}` }]);
-          }}
-        />
-      )}
-
-
       <form
         className="mt-3 flex items-end gap-2 border-t border-border pt-3"
         onSubmit={(e) => {

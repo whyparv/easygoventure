@@ -23,7 +23,7 @@
 //   To confirm: names + passports
 //   — Easy Go Venture Tourism (by sachin)
 
-import type { Lead, LeadHotelOption, LeadServiceItem } from '@shared/types/domain';
+import type { Lead, LeadHotelOption } from '@shared/types/domain';
 import { CUSTOMER_CURRENCY, INTERNAL_CURRENCY, blendedHotelCostPerPax, normalizeHotelOption, toCustomerUsd } from './lead-pricing';
 
 const CURRENCY_SYMBOL: Record<string, string> = {
@@ -182,7 +182,6 @@ function renderGroup(group: HotelGroup, index: number, pax: number): string {
     const label = opt.roomType?.trim() || 'Room';
     const meal = mealPlanFromRoomType(opt.roomType);
     // Only show room count when > 1 (multi-room bookings)
-    const rooms = (opt.roomCount ?? 1) > 1 ? `${opt.roomCount} rooms` : null;
     const nights = opt.nights ? `${opt.nights} nights` : null;
     const occLabel = opt.occupancyType === 'SINGLE' ? 'Sgl' : opt.occupancyType === 'TRIPLE' ? 'Tpl' : 'Dbl';
     const segPax = opt.paxCount ?? pax;

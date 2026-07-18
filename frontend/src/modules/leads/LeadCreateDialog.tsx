@@ -710,7 +710,7 @@ function HotelEditor({
   onAddRoomType?: () => void;
 }) {
   const pricing = calcHotelOption(hotel, pax);
-  const { nights, rooms, maxOccupancy, pricePerNight, total, pricePerPerson } = pricing;
+  const { nights, rooms, pricePerNight, total, pricePerPerson } = pricing;
 
   return (
     <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-2.5 space-y-2">

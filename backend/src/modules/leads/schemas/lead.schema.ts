@@ -424,6 +424,10 @@ export class Lead {
   @Prop({ trim: true })
   preparedBy?: string;
 
+  /** Saved WhatsApp quote text — regenerated on demand via the Recreate button. */
+  @Prop({ type: String })
+  whatsappMessage?: string;
+
   /** Multi-location itinerary, each location has its own hotel list. */
   @Prop({ type: [Object], default: [] })
   locations!: LeadLocation[];

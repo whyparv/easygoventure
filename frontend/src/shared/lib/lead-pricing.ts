@@ -55,15 +55,25 @@ export function toCustomerUsd(amount: number, currency = INTERNAL_CURRENCY): num
   return toUsd(amount, currency);
 }
 
+export function occupancyToMax(type?: string): number {
+  if (type === 'SINGLE') return 1;
+  if (type === 'TRIPLE') return 3;
+  return DEFAULT_ROOM_OCCUPANCY; // 2 for DOUBLE or undefined
+}
+
 export function requiredRoomCount(
   pax: number,
   maxOccupancy = DEFAULT_ROOM_OCCUPANCY,
   requestedRooms?: number,
 ): number {
+  // If the user/AI explicitly specified a room count, honour it — this covers
+  // triple-sharing (3 pax, 1 double room) and other non-standard occupancy.
+  if (requestedRooms != null && requestedRooms > 0) {
+    return Math.max(1, Math.ceil(requestedRooms));
+  }
   const safePax = Math.max(1, Math.ceil(pax || 1));
   const safeOccupancy = Math.max(1, Math.ceil(maxOccupancy || DEFAULT_ROOM_OCCUPANCY));
-  const needed = Math.ceil(safePax / safeOccupancy);
-  return Math.max(needed, Math.ceil(requestedRooms || 1));
+  return Math.ceil(safePax / safeOccupancy);
 }
 
 export function hotelTotalAed(pricePerNight: number, nights: number, rooms: number): number {
@@ -92,9 +102,11 @@ export function normalizeHotelOption(
   const maxOccupancy =
     option.maxOccupancy != null && option.maxOccupancy > 0
       ? Math.ceil(option.maxOccupancy)
-      : DEFAULT_ROOM_OCCUPANCY;
+      : occupancyToMax(option.occupancyType);
+  // paxForOption: how many pax share THIS segment's room cost
+  const paxForOption = option.paxCount != null && option.paxCount > 0 ? option.paxCount : pax;
   const nights = option.nights != null && option.nights > 0 ? option.nights : fallbackNights || 1;
-  const roomCount = requiredRoomCount(pax, maxOccupancy, option.roomCount);
+  const roomCount = requiredRoomCount(paxForOption, maxOccupancy, option.roomCount);
   // All derived amounts are whole AED dirhams — round so the UI/quote never
   // shows fractional currency (e.g. "AED 333.33333/pax") after conversion.
   const rawPricePerNight =
@@ -102,7 +114,7 @@ export function normalizeHotelOption(
     (sourceTotalPrice != null
       ? sourceTotalPrice / (Math.max(1, nights) * roomCount)
       : sourcePricePerPerson != null
-        ? (sourcePricePerPerson * Math.max(1, pax)) / (Math.max(1, nights) * roomCount)
+        ? (sourcePricePerPerson * Math.max(1, paxForOption)) / (Math.max(1, nights) * roomCount)
         : undefined);
   const pricePerNight = rawPricePerNight != null ? Math.round(rawPricePerNight) : undefined;
   const totalPrice =
@@ -113,7 +125,7 @@ export function normalizeHotelOption(
         : undefined;
   const pricePerPerson =
     totalPrice != null
-      ? Math.round(totalPrice / Math.max(1, pax))
+      ? Math.round(totalPrice / Math.max(1, paxForOption))
       : sourcePricePerPerson != null
         ? Math.round(sourcePricePerPerson)
         : undefined;
@@ -128,4 +140,21 @@ export function normalizeHotelOption(
     totalPrice,
     pricePerPerson,
   };
+}
+
+/** For mixed-occupancy packages, compute blended per-person hotel cost across all segments. */
+export function blendedHotelCostPerPax(
+  normalizedOptions: LeadHotelOption[],
+  totalPax: number,
+): number | null {
+  const hasMixed = normalizedOptions.some((o) => o.paxCount != null && o.paxCount < totalPax && o.paxCount > 0);
+  if (!hasMixed) return null; // caller should use recommended option normally
+  let totalCost = 0;
+  let totalAllocated = 0;
+  for (const o of normalizedOptions) {
+    const segPax = o.paxCount ?? totalPax;
+    totalCost += (o.pricePerPerson ?? 0) * segPax;
+    totalAllocated += segPax;
+  }
+  return totalAllocated > 0 ? totalCost / Math.max(1, totalPax) : null;
 }

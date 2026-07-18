@@ -56,6 +56,12 @@ export const queryKeys = {
     risk: (proposalId: string) => ['operations', proposalId, 'risk'] as const,
     documents: (proposalId: string) => ['operations', proposalId, 'documents'] as const,
   },
+  agencies: {
+    all: ['agencies'] as const,
+    list: (params: Record<string, unknown>) => ['agencies', 'list', params] as const,
+    detail: (id: string) => ['agencies', 'detail', id] as const,
+    search: (q: string) => ['agencies', 'search', q] as const,
+  },
   reporting: {
     revenue: ['reporting', 'revenue-pipeline'] as const,
   },

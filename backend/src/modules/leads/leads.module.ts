@@ -6,6 +6,7 @@ import { LeadsRepository } from './leads.repository';
 import { LeadActivitiesRepository } from './lead-activities.repository';
 import { LeadsService } from './leads.service';
 import { LeadsController } from './leads.controller';
+import { AgenciesModule } from '../agencies/agencies.module';
 
 /**
  * Leads - the primary workflow entity. Owns the lead record and its timeline.
@@ -17,6 +18,7 @@ import { LeadsController } from './leads.controller';
       { name: Lead.name, schema: LeadSchema },
       { name: LeadActivity.name, schema: LeadActivitySchema },
     ]),
+    AgenciesModule,
   ],
   controllers: [LeadsController],
   providers: [LeadsRepository, LeadActivitiesRepository, LeadsService],

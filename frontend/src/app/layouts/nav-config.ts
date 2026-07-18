@@ -1,6 +1,7 @@
 import {
   BedDouble,
   Bot,
+  Briefcase,
   ClipboardList,
   ConciergeBell,
   Gauge,
@@ -45,6 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Operations', to: ROUTES.operations, icon: Gauge, enabled: true, permission: 'operations.read' },
       { label: 'Fulfillments', to: ROUTES.fulfillments, icon: ClipboardList, enabled: true },
+      { label: 'Agencies', to: ROUTES.agencies, icon: Briefcase, enabled: true },
       { label: 'Hotel Catalog', to: ROUTES.hotels, icon: BedDouble, enabled: true },
       { label: 'Services', to: ROUTES.services, icon: ConciergeBell, enabled: true, permission: 'service.read' },
       { label: 'Vouchers', to: ROUTES.vouchers, icon: Ticket, enabled: false },

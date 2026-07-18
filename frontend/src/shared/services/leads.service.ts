@@ -49,6 +49,7 @@ export interface CreateLeadInput {
   quoteValidityHours?: number;
   // Internal tracking
   preparedBy?: string;
+  whatsappMessage?: string;
   locations?: LeadLocation[];
   flights?: LeadFlight[];
   travelers?: LeadTraveler[];

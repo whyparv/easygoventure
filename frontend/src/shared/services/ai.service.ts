@@ -82,6 +82,8 @@ export interface ExtractedHotel {
   roomCount?: number;
   roomType?: string;
   maxOccupancy?: number;
+  occupancyType?: 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+  paxCount?: number;
   pricePerNight?: number;
 }
 
@@ -97,6 +99,15 @@ export interface ExtractedService {
   currency?: string;
   date?: string;
   notes?: string;
+}
+
+/** Per-destination date+nights tracking (multi-city trips). */
+export interface ExtractedDestination {
+  city: string;
+  checkIn?: string;
+  checkOut?: string;
+  nights?: number;
+  order: number;
 }
 
 export interface ExtractedLeadData {
@@ -115,10 +126,14 @@ export interface ExtractedLeadData {
   adults?: number;
   children?: number;
   infants?: number;
+  childAges?: number[];
   nationality?: string;
   notes?: string;
+  destinations?: ExtractedDestination[];
   hotels?: ExtractedHotel[];
   services?: ExtractedService[];
+  /** Margin percentage to apply over cost price (e.g. 15 = 15%). */
+  markup?: number;
 }
 
 export interface LeadIntakeChatInput {

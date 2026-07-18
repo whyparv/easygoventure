@@ -2,10 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { BusinessException } from '../../../common/exceptions/app.exceptions';
-import { AIProvider, ChatMessage, ChatOptions } from './ai-provider.interface';
+import {
+  AIProvider,
+  ChatMessage,
+  ChatOptions,
+  ToolDefinition,
+  ToolCall,
+  ToolChatResult,
+} from './ai-provider.interface';
 
-/** Abort a request after this many ms. */
-const REQUEST_TIMEOUT_MS = 15_000;
+/** Abort a request after this many ms. Single-call RAG prompts can be large. */
+const REQUEST_TIMEOUT_MS = 45_000;
 /** At most one retry (so a maximum of two attempts total), handled by the SDK. */
 const MAX_RETRIES = 1;
 
@@ -59,7 +66,7 @@ export class GroqProvider implements AIProvider {
     try {
       const completion = await this.client.chat.completions.create({
         model: this.model,
-        messages,
+        messages: messages as unknown as Groq.Chat.ChatCompletionMessageParam[],
         temperature: options.temperature ?? 0.2,
         max_completion_tokens: options.maxTokens ?? 512,
         // Disable chain-of-thought for reasoning models (Qwen3 etc.): it wastes the
@@ -70,7 +77,7 @@ export class GroqProvider implements AIProvider {
         ...(options.json ? { response_format: { type: 'json_object' } } : {}),
       });
 
-      const content = completion.choices?.[0]?.message?.content;
+      const content = (completion as Groq.Chat.ChatCompletion).choices?.[0]?.message?.content;
       if (!content) {
         throw new BusinessException(
           'AI provider returned an empty response',
@@ -84,6 +91,55 @@ export class GroqProvider implements AIProvider {
 
       const message = this.describe(error);
       this.logger.error(`Groq request failed: ${message}`);
+      throw new BusinessException(`AI provider error: ${message}`, 'AI_PROVIDER_ERROR');
+    }
+  }
+
+  async chatWithTools(
+    messages: ChatMessage[],
+    tools: ToolDefinition[],
+    options: ChatOptions = {},
+  ): Promise<ToolChatResult> {
+    if (!this.client) {
+      throw new BusinessException(
+        'AI provider is not configured (missing GROQ_API_KEY)',
+        'AI_NOT_CONFIGURED',
+      );
+    }
+    try {
+      const rawCompletion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: messages as unknown as Groq.Chat.ChatCompletionMessageParam[],
+        tools: tools as unknown as Groq.Chat.ChatCompletionTool[],
+        tool_choice: 'auto',
+        temperature: options.temperature ?? 0.2,
+        max_completion_tokens: options.maxTokens ?? 2000,
+        ...(this.reasoningEffort !== 'auto' ? { reasoning_effort: this.reasoningEffort } : {}),
+        // NOTE: do NOT set response_format when using tools
+      });
+      const completion = rawCompletion as Groq.Chat.ChatCompletion;
+
+      const choice = completion.choices?.[0];
+      if (!choice) throw new BusinessException('AI provider returned no choices', 'AI_EMPTY_RESPONSE');
+
+      const toolCalls: ToolCall[] = (choice.message.tool_calls ?? []).map((tc: Groq.Chat.ChatCompletionMessageToolCall) => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: (() => {
+          try { return JSON.parse(tc.function.arguments || '{}') as Record<string, unknown>; }
+          catch { return {} as Record<string, unknown>; }
+        })(),
+      }));
+
+      return {
+        content: choice.message.content ?? null,
+        toolCalls,
+        rawMessage: choice.message,
+      };
+    } catch (error) {
+      if (error instanceof BusinessException) throw error;
+      const message = this.describe(error);
+      this.logger.error(`Groq chatWithTools failed: ${message}`);
       throw new BusinessException(`AI provider error: ${message}`, 'AI_PROVIDER_ERROR');
     }
   }

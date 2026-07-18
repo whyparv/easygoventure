@@ -6,6 +6,7 @@ import { escapeRegExp } from '../../common/utils/regex.util';
 import { requireOrganizationId, tenantFilter } from '../../common/tenant/tenant-scope';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
+import { AgenciesService } from '../agencies/agencies.service';
 import { LeadsRepository } from './leads.repository';
 import { LeadActivitiesRepository } from './lead-activities.repository';
 import { CreateLeadDto } from './dto/create-lead.dto';
@@ -24,10 +25,19 @@ export class LeadsService {
     private readonly leads: LeadsRepository,
     private readonly activities: LeadActivitiesRepository,
     private readonly audit: AuditService,
+    private readonly agenciesService: AgenciesService,
   ) {}
 
   async create(dto: CreateLeadDto, actor: AuthenticatedUser): Promise<LeadDocument> {
     const organizationId = requireOrganizationId(actor);
+
+    // Auto-create agency if a company name is provided and no agency exists yet
+    if (dto.companyName?.trim()) {
+      await this.agenciesService
+        .findOrCreate(dto.companyName.trim(), dto.phone, dto.email, actor)
+        .catch(() => null); // never fail lead creation because of agency
+    }
+
     const lead = await this.leads.create({ ...dto, organizationId } as never);
     await this.appendActivity(
       lead.id as string,

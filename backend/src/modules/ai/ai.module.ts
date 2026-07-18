@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { HotelsModule } from '../hotels/hotels.module';
 import { BrainModule } from '../brain/brain.module';
 import { ServiceCatalogModule } from '../service-catalog/service-catalog.module';
+import { AgenciesModule } from '../agencies/agencies.module';
 import { AI_PROVIDER } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { AIService } from './ai.service';
@@ -28,6 +29,7 @@ import { AiApproval, AiApprovalSchema } from './schemas/ai-approval.schema';
     HotelsModule,
     BrainModule,
     ServiceCatalogModule,
+    AgenciesModule,
     MongooseModule.forFeature([
       { name: AiSession.name, schema: AiSessionSchema },
       { name: AiMessage.name, schema: AiMessageSchema },

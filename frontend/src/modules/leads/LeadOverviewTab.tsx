@@ -23,6 +23,7 @@ import {
   DEFAULT_ROOM_OCCUPANCY,
   INTERNAL_CURRENCY,
   normalizeHotelOption,
+  occupancyToMax,
   toInternalAed,
 } from '@shared/lib/lead-pricing';
 import { AgencyAutocomplete } from './AgencyAutocomplete';
@@ -858,12 +859,17 @@ function HotelOptionsEditor({
               onChange={(e) => update(i, { roomCount: e.target.value === '' ? undefined : Number(e.target.value) })}
               placeholder="Rooms"
             />
-            <Input
-              type="number"
-              min={1}
-              value={opt.maxOccupancy ?? ''}
-              onChange={(e) => update(i, { maxOccupancy: e.target.value === '' ? undefined : Number(e.target.value) })}
-              placeholder="Max/room"
+            <Select
+              value={opt.occupancyType ?? 'DOUBLE'}
+              onChange={(e) => {
+                const type = e.target.value as 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+                update(i, { occupancyType: type, maxOccupancy: occupancyToMax(type) });
+              }}
+              options={[
+                { value: 'SINGLE', label: 'Single (1/room)' },
+                { value: 'DOUBLE', label: 'Double (2/room)' },
+                { value: 'TRIPLE', label: 'Triple (3/room)' },
+              ]}
             />
             <Input
               type="number"
@@ -873,9 +879,23 @@ function HotelOptionsEditor({
               placeholder="Nights"
             />
           </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Input
+              type="number"
+              min={1}
+              value={opt.paxCount ?? ''}
+              onChange={(e) => update(i, { paxCount: e.target.value === '' ? undefined : Number(e.target.value) })}
+              placeholder={`Pax in segment (of ${pax} total) — for mixed room type packages`}
+              title="Pax in this room segment — set only for mixed room type packages"
+            />
+          </div>
           <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
             <span className="text-muted-foreground">
-              {opt.roomCount} room{opt.roomCount && opt.roomCount > 1 ? 's' : ''} for {pax} pax · max {opt.maxOccupancy ?? DEFAULT_ROOM_OCCUPANCY}/room
+              {(() => {
+                const segPax = opt.paxCount ?? pax;
+                const occLabel = opt.occupancyType === 'SINGLE' ? 'Single' : opt.occupancyType === 'TRIPLE' ? 'Triple' : 'Double';
+                return `${segPax} pax (${occLabel} occ.) → ${opt.roomCount} room${opt.roomCount && opt.roomCount > 1 ? 's' : ''}`;
+              })()}
             </span>
             <span className="font-semibold text-primary">
               AED {(opt.totalPrice ?? 0).toLocaleString()} total

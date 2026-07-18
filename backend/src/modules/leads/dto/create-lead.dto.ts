@@ -597,6 +597,11 @@ export class CreateLeadDto {
   @MaxLength(120)
   preparedBy?: string;
 
+  @ApiPropertyOptional({ description: 'Saved WhatsApp quote text' })
+  @IsOptional()
+  @IsString()
+  whatsappMessage?: string;
+
   @ApiPropertyOptional({ type: [LeadLocationDto] })
   @IsOptional()
   @IsArray()

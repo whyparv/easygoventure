@@ -46,6 +46,10 @@ export interface LeadHotelOption {
   roomCount?: number;
   /** Max guests allowed in one room before another room is required. */
   maxOccupancy?: number;
+  /** How many guests share one room: SINGLE=1/room, DOUBLE=2/room, TRIPLE=3/room */
+  occupancyType?: 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+  /** Pax allocated to this specific room segment (for mixed-type packages). Defaults to total lead pax. */
+  paxCount?: number;
   nights?: number;
   totalPrice?: number;
   pricePerPerson?: number;
@@ -223,6 +227,8 @@ export interface Lead {
   quoteValidityHours?: number;
   // Internal tracking
   preparedBy?: string;
+  /** Saved WhatsApp quote text; regenerated via the Recreate button. */
+  whatsappMessage?: string;
   locations: LeadLocation[];
   flights: LeadFlight[];
   travelers: LeadTraveler[];
@@ -359,6 +365,24 @@ export interface FollowUp {
 export interface AcceptProposalResult {
   proposal: Proposal;
   fulfillment: Fulfillment;
+}
+
+export interface Agency {
+  id: string;
+  organizationId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  contactPerson?: string;
+  city?: string;
+  country?: string;
+  address?: string;
+  website?: string;
+  notes?: string;
+  isActive: boolean;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ParsedInquiry {

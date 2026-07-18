@@ -90,6 +90,12 @@ export const PERMISSIONS = {
   HOTEL_READ: 'hotel.read',
   HOTEL_MANAGE: 'hotel.manage',
 
+  // Agencies (travel agency directory)
+  AGENCY_READ: 'agency.read',
+  AGENCY_CREATE: 'agency.create',
+  AGENCY_UPDATE: 'agency.update',
+  AGENCY_DELETE: 'agency.delete',
+
   // Vendors & rates
   VENDOR_READ: 'vendor.read',
   VENDOR_CREATE: 'vendor.create',
@@ -208,6 +214,11 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 
   { key: PERMISSIONS.HOTEL_READ, group: 'Hotel Catalog', description: 'View the hotel reference catalog', defaultScope: G },
   { key: PERMISSIONS.HOTEL_MANAGE, group: 'Hotel Catalog', description: 'Manage the hotel reference catalog', defaultScope: G },
+
+  { key: PERMISSIONS.AGENCY_READ, group: 'Agencies', description: 'View agencies', defaultScope: O },
+  { key: PERMISSIONS.AGENCY_CREATE, group: 'Agencies', description: 'Create agencies', defaultScope: O },
+  { key: PERMISSIONS.AGENCY_UPDATE, group: 'Agencies', description: 'Update agencies', defaultScope: O },
+  { key: PERMISSIONS.AGENCY_DELETE, group: 'Agencies', description: 'Delete agencies', defaultScope: O },
 
   { key: PERMISSIONS.VENDOR_READ, group: 'Vendors', description: 'View vendors', defaultScope: O },
   { key: PERMISSIONS.VENDOR_CREATE, group: 'Vendors', description: 'Create vendors', defaultScope: O },

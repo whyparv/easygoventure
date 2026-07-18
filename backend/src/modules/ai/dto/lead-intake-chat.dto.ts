@@ -23,6 +23,10 @@ export class ExtractedHotelDto {
   @IsOptional() @IsNumber() roomCount?: number;
   @IsOptional() @IsString() roomType?: string;
   @IsOptional() @IsNumber() maxOccupancy?: number;
+  /** SINGLE | DOUBLE | TRIPLE — occupancy per room */
+  @IsOptional() @IsString() occupancyType?: string;
+  /** Pax in this room segment (for mixed configs). Omit when all pax share same room type. */
+  @IsOptional() @IsNumber() paxCount?: number;
   @IsOptional() @IsNumber() pricePerNight?: number;
 }
 
@@ -42,6 +46,14 @@ export class ExtractedServiceDto {
 }
 
 /** Partial lead fields gathered so far in the conversation. */
+export class ExtractedDestinationDto {
+  @IsOptional() @IsString() city?: string;
+  @IsOptional() @IsString() checkIn?: string;
+  @IsOptional() @IsString() checkOut?: string;
+  @IsOptional() @IsNumber() nights?: number;
+  @IsOptional() @IsNumber() order?: number;
+}
+
 export class ExtractedLeadDataDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() phone?: string;
@@ -57,10 +69,14 @@ export class ExtractedLeadDataDto {
   @IsOptional() @IsNumber() adults?: number;
   @IsOptional() @IsNumber() children?: number;
   @IsOptional() @IsNumber() infants?: number;
+  @IsOptional() @IsArray() childAges?: number[];
   @IsOptional() @IsString() nationality?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsArray() destinations?: ExtractedDestinationDto[];
   @IsOptional() @IsArray() hotels?: ExtractedHotelDto[];
   @IsOptional() @IsArray() services?: ExtractedServiceDto[];
+  /** Margin/markup percentage to apply over cost. Ask AI: "What margin % to add?" */
+  @IsOptional() @IsNumber() markup?: number;
 }
 
 export class LeadIntakeChatDto {
@@ -86,6 +102,14 @@ export class LeadIntakeChatDto {
   extractedData?: ExtractedLeadDataDto;
 }
 
+export interface ExtractedDestination {
+  city: string;
+  checkIn?: string;
+  checkOut?: string;
+  nights?: number;
+  order: number;
+}
+
 export interface ExtractedHotel {
   city?: string;
   name?: string;
@@ -96,6 +120,8 @@ export interface ExtractedHotel {
   roomCount?: number;
   roomType?: string;
   maxOccupancy?: number;
+  occupancyType?: 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+  paxCount?: number;
   pricePerNight?: number;
 }
 
@@ -127,10 +153,13 @@ export interface LeadIntakeChatResponse {
     adults?: number;
     children?: number;
     infants?: number;
+    childAges?: number[];
     nationality?: string;
     notes?: string;
+    destinations?: ExtractedDestination[];
     hotels?: ExtractedHotel[];
     services?: ExtractedService[];
+    markup?: number;
   };
   isComplete: boolean;
   missingFields: string[];

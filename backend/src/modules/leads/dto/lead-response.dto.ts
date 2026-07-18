@@ -88,6 +88,9 @@ export class LeadResponseDto {
   @ApiPropertyOptional()
   preparedBy?: string;
 
+  @ApiPropertyOptional()
+  whatsappMessage?: string;
+
   @ApiProperty({ default: false })
   isDeleted!: boolean;
 

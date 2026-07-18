@@ -16,6 +16,7 @@ const FulfillmentsPage = lazy(() => import('@modules/fulfillments/FulfillmentsPa
 const OperationsPage = lazy(() => import('@modules/operations/OperationsPage'));
 const HotelsPage = lazy(() => import('@modules/hotels/HotelsPage'));
 const ServicesPage = lazy(() => import('@modules/services/ServicesPage'));
+const AgenciesPage = lazy(() => import('@modules/agencies/AgenciesPage'));
 const AnalyticsPage = lazy(() => import('@modules/analytics/AnalyticsPage'));
 const AiPage = lazy(() => import('@modules/ai/AiPage'));
 const SettingsPage = lazy(() => import('@modules/settings/SettingsPage'));
@@ -72,7 +73,7 @@ export function AppRouter() {
         <Route path={ROUTES.ai} element={<AiPage />} />
         <Route path={ROUTES.settings} element={<SettingsPage />} />
         <Route path={ROUTES.brain} element={<BrainPage />} />
-        <Route path={ROUTES.agencies} element={<ComingSoonPage title="Agencies" />} />
+        <Route path={ROUTES.agencies} element={<AgenciesPage />} />
         <Route path={ROUTES.contacts} element={<ComingSoonPage title="Contacts" />} />
         <Route path={ROUTES.bookings} element={<ComingSoonPage title="Bookings" />} />
         <Route path={ROUTES.vouchers} element={<ComingSoonPage title="Vouchers" />} />

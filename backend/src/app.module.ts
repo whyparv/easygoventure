@@ -1,8 +1,10 @@
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { ServeStaticModule } from '@nestjs/serve-static';
 
 import { AppConfigModule } from './config/config.module';
 import { CommonModule } from './common/common.module';
@@ -18,6 +20,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { ServiceCatalogModule } from './modules/service-catalog/service-catalog.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
+import { AgenciesModule } from './modules/agencies/agencies.module';
 import { HotelsModule } from './modules/hotels/hotels.module';
 import { InquiriesModule } from './modules/inquiries/inquiries.module';
 import { PackagesModule } from './modules/packages/packages.module';
@@ -34,6 +37,12 @@ import { BrainModule } from './modules/brain/brain.module';
 
 @Module({
   imports: [
+    // Serve frontend build at /; exclude all /api routes so NestJS handles them
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      exclude: ['/api/(.*)'],
+    }),
+
     // Infrastructure
     AppConfigModule,
     LoggerModule.forRootAsync({
@@ -79,9 +88,10 @@ import { BrainModule } from './modules/brain/brain.module';
     RolesModule,
     UsersModule,
 
-    // Catalog, vendors & inquiry domain
+    // Catalog, vendors, agencies & inquiry domain
     ServiceCatalogModule,
     VendorsModule,
+    AgenciesModule,
     HotelsModule,
     InquiriesModule,
 

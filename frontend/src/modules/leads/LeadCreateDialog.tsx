@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/
 import { useCreateLead } from '@shared/mutations/leads.mutations';
 import { useCreateInquiry } from '@shared/mutations/inquiries.mutations';
 import { useLeadIntakeChat } from '@shared/mutations/ai.mutations';
-import type { ExtractedHotel, ExtractedLeadData, ExtractedService, ChatTurn } from '@shared/services/ai.service';
+import type { ExtractedHotel, ExtractedLeadData, ExtractedDestination, ExtractedService, ChatTurn } from '@shared/services/ai.service';
 import { hotelsService } from '@shared/services/hotels.service';
 import { servicesService } from '@shared/services/services.service';
 import type { Hotel } from '@shared/types/ops-domain';
@@ -28,11 +28,15 @@ import {
   DEFAULT_ROOM_OCCUPANCY,
   INTERNAL_CURRENCY,
   hotelTotalAed,
+  occupancyToMax,
   requiredRoomCount,
   toInternalAed,
 } from '@shared/lib/lead-pricing';
 import { cn } from '@shared/utils/cn';
+import { buildWhatsAppQuote } from '@shared/lib/whatsapp';
+import { leadsService } from '@shared/services/leads.service';
 import { RoomTypeInput } from './RoomTypeInput';
+import { AgencyAutocomplete } from './AgencyAutocomplete';
 
 function uuid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -59,6 +63,7 @@ interface Fields {
   infants: string;
   nationality: string;
   notes: string;
+  markup: string;
   locations: LeadLocation[];
   hotels: ExtractedHotel[];
   services: ExtractedService[];
@@ -69,6 +74,7 @@ const EMPTY: Fields = {
   source: 'WHATSAPP', inquiryType: 'TRAVEL_PACKAGE',
   startDate: '', endDate: '', budget: '', travelers: '',
   adults: '', children: '', infants: '', nationality: '', notes: '',
+  markup: '',
   locations: [], hotels: [], services: [],
 };
 
@@ -106,8 +112,10 @@ function calcServicePrice(svc: ExtractedService, pax: number): ServicePricing | 
 
 function calcHotelOption(hotel: ExtractedHotel, pax: number, fallbackNights?: number) {
   const nights = Math.max(1, hotel.nights ?? fallbackNights ?? 1);
-  const maxOccupancy = Math.max(1, hotel.maxOccupancy ?? DEFAULT_ROOM_OCCUPANCY);
-  const rooms = requiredRoomCount(pax, maxOccupancy, hotel.roomCount);
+  const maxOcc = hotel.maxOccupancy ?? occupancyToMax(hotel.occupancyType);
+  const maxOccupancy = Math.max(1, maxOcc);
+  const segPax = hotel.paxCount != null && hotel.paxCount > 0 ? hotel.paxCount : pax;
+  const rooms = requiredRoomCount(segPax, maxOccupancy, hotel.roomCount);
   const pricePerNight = hotelPricePerNight(hotel);
   const total = hotelTotalAed(pricePerNight, nights, rooms);
   return {
@@ -116,7 +124,7 @@ function calcHotelOption(hotel: ExtractedHotel, pax: number, fallbackNights?: nu
     rooms,
     pricePerNight,
     total,
-    pricePerPerson: Math.round(total / Math.max(1, pax)),
+    pricePerPerson: Math.round(total / Math.max(1, segPax)),
   };
 }
 
@@ -162,14 +170,31 @@ function mergeExtracted(fields: Fields, data: ExtractedLeadData): Fields {
   const hotels = inferHotelDates(rawHotels, startDate || undefined);
 
   let locations = fields.locations;
-  if (hotels.length > 0) {
+  const existingCities = new Set(fields.locations.map((l) => l.city.toLowerCase()));
+
+  // Priority 1: destinations[] (AI-populated, has per-city nights and order)
+  if (data.destinations && data.destinations.length > 0) {
+    const sorted = [...data.destinations].sort((a: ExtractedDestination, b: ExtractedDestination) => (a.order ?? 0) - (b.order ?? 0));
+    const fromDests = sorted
+      .filter((d: ExtractedDestination) => d.city)
+      .map((d: ExtractedDestination) => ({
+        locationId: uuid(),
+        city: d.city,
+        hotels: [] as LeadLocation['hotels'],
+        nights: d.nights,
+      }));
+    const newOnes = fromDests.filter((l) => !existingCities.has(l.city.toLowerCase()));
+    locations = fields.locations.length > 0
+      ? [...fields.locations, ...newOnes]
+      : fromDests;
+  // Priority 2: build from hotels (provides city but no nights at location level)
+  } else if (hotels.length > 0) {
     const fromHotels = buildLocationsFromHotels(hotels);
-    // Merge: keep existing if same city, add new ones
-    const existingCities = new Set(fields.locations.map((l) => l.city.toLowerCase()));
     const newOnes = fromHotels.filter((l) => !existingCities.has(l.city.toLowerCase()));
     locations = fields.locations.length > 0
       ? [...fields.locations, ...newOnes]
       : fromHotels;
+  // Priority 3: comma-separated destination string
   } else if (data.destination && !fields.locations.length) {
     locations = data.destination
       .split(',')
@@ -202,6 +227,7 @@ function mergeExtracted(fields: Fields, data: ExtractedLeadData): Fields {
     adults, children, infants,
     nationality: data.nationality || fields.nationality,
     notes: data.notes || fields.notes,
+    markup: data.markup != null ? String(data.markup) : fields.markup,
     hotels,
     services: data.services?.length ? data.services : fields.services,
     locations,
@@ -282,6 +308,8 @@ export function LeadCreateDialog({
           pricePerNight: pricing.pricePerNight,
           roomCount: pricing.rooms,
           maxOccupancy: pricing.maxOccupancy,
+          occupancyType: h.occupancyType,
+          paxCount: h.paxCount,
           nights: pricing.nights,
           totalPrice: pricing.total,
           pricePerPerson: pricing.pricePerPerson,
@@ -319,6 +347,8 @@ export function LeadCreateDialog({
         fields.infants ? `Infants: ${fields.infants}` : '',
       ].filter(Boolean);
 
+      const markupPct = fields.markup ? Number(fields.markup) : undefined;
+
       const lead = await createLead.mutateAsync({
         name: fields.name.trim() || undefined,
         phone: fields.phone.trim() || undefined,
@@ -337,6 +367,7 @@ export function LeadCreateDialog({
         destination,
         nights: totalNights ?? undefined,
         currency: INTERNAL_CURRENCY,
+        markup: markupPct,
         hotelOptions: hotelOptions.length > 0 ? hotelOptions : undefined,
         serviceItems: serviceItems.length > 0 ? serviceItems : undefined,
         services: fields.services.map((s) => s.name).filter(Boolean) as string[],
@@ -347,6 +378,11 @@ export function LeadCreateDialog({
           .map((s) => s.name)
           .filter(Boolean) as string[],
       });
+
+      // Compute and save WhatsApp quote so it's immediately available
+      const whatsappMessage = buildWhatsAppQuote(lead);
+      await leadsService.update(lead.id, { whatsappMessage });
+
       await createInquiry.mutateAsync({
         customerName: fields.name.trim(),
         customerPhone: fields.phone || undefined,
@@ -397,7 +433,18 @@ export function LeadCreateDialog({
             </div>
           </Field>
           <Field label="Company / Agency" highlight={!!fields.companyName}>
-            <Input value={fields.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Acme Travels" />
+            <AgencyAutocomplete
+              value={fields.companyName}
+              onChange={(v) => set({ companyName: v })}
+              onSelect={(agency) =>
+                set({
+                  companyName: agency.name,
+                  phone: fields.phone || agency.phone || '',
+                  email: fields.email || agency.email || '',
+                })
+              }
+              placeholder="Acme Travels"
+            />
           </Field>
         </div>
       </Section>
@@ -438,6 +485,12 @@ export function LeadCreateDialog({
               <Input type="number" min={0} value={fields.budget} onChange={(e) => set({ budget: e.target.value })} placeholder="15000" className="pl-8" />
             </div>
           </Field>
+          <Field label="Margin %" highlight={!!fields.markup}>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              <Input type="number" min={0} max={100} value={fields.markup} onChange={(e) => set({ markup: e.target.value })} placeholder="15" className="pl-7" />
+            </div>
+          </Field>
           <Field label="Nationality" highlight={!!fields.nationality}>
             <div className="relative">
               <Globe className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -473,6 +526,18 @@ export function LeadCreateDialog({
                 pax={pax}
                 onUpdate={(h) => set({ hotels: fields.hotels.map((old, j) => j === i ? h : old) })}
                 onRemove={() => set({ hotels: fields.hotels.filter((_, j) => j !== i) })}
+                onAddRoomType={() => {
+                  // Insert a sibling after this hotel with same dates/city/name but blank roomType
+                  const sibling: ExtractedHotel = {
+                    ...hotel,
+                    roomType: '',
+                    pricePerNight: undefined,
+                    roomCount: hotel.roomCount ?? 1,
+                  };
+                  const updated = [...fields.hotels];
+                  updated.splice(i + 1, 0, sibling);
+                  set({ hotels: updated });
+                }}
               />
             ))}
           </div>
@@ -636,12 +701,13 @@ export function LeadCreateDialog({
 // ── Hotel editor ─────────────────────────────────────────────────────────────
 
 function HotelEditor({
-  hotel, pax, onUpdate, onRemove,
+  hotel, pax, onUpdate, onRemove, onAddRoomType,
 }: {
   hotel: ExtractedHotel;
   pax: number;
   onUpdate: (h: ExtractedHotel) => void;
   onRemove: () => void;
+  onAddRoomType?: () => void;
 }) {
   const pricing = calcHotelOption(hotel, pax);
   const { nights, rooms, maxOccupancy, pricePerNight, total, pricePerPerson } = pricing;
@@ -657,6 +723,16 @@ function HotelEditor({
             onSelect={(h) => onUpdate({ ...hotel, name: h.name, rating: h.starRating, city: h.city })}
           />
         </div>
+        {onAddRoomType && (
+          <button
+            type="button"
+            onClick={onAddRoomType}
+            title="Add another room type for this hotel"
+            className="flex items-center gap-0.5 text-[10px] text-primary hover:underline shrink-0 px-1"
+          >
+            <Plus className="size-3" /> Room type
+          </button>
+        )}
         <button onClick={onRemove} className="text-muted-foreground hover:text-danger shrink-0">
           <X className="size-4" />
         </button>
@@ -684,8 +760,32 @@ function HotelEditor({
           />
         </div>
         <div>
-          <label className="text-[10px] text-muted-foreground">Max/room</label>
-          <Input type="number" min={1} value={maxOccupancy} onChange={(e) => onUpdate({ ...hotel, maxOccupancy: Number(e.target.value) || DEFAULT_ROOM_OCCUPANCY })} className="text-xs h-7" />
+          <label className="text-[10px] text-muted-foreground">Occupancy</label>
+          <Select
+            value={hotel.occupancyType ?? 'DOUBLE'}
+            onChange={(e) => {
+              const type = e.target.value as 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+              onUpdate({ ...hotel, occupancyType: type, maxOccupancy: occupancyToMax(type) });
+            }}
+            options={[
+              { value: 'SINGLE', label: 'Single (1/rm)' },
+              { value: 'DOUBLE', label: 'Double (2/rm)' },
+              { value: 'TRIPLE', label: 'Triple (3/rm)' },
+            ]}
+            className="text-xs h-7"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">Pax (segment)</label>
+          <Input
+            type="number"
+            min={1}
+            value={hotel.paxCount ?? ''}
+            onChange={(e) => onUpdate({ ...hotel, paxCount: e.target.value === '' ? undefined : Number(e.target.value) })}
+            placeholder={`of ${pax}`}
+            title="Pax in this room segment — leave blank to use total pax"
+            className="text-xs h-7"
+          />
         </div>
         <div>
           <label className="text-[10px] text-muted-foreground">AED/night</label>
@@ -706,7 +806,11 @@ function HotelEditor({
       </div>
       <div className="flex items-center justify-between pt-0.5">
         <span className="text-[10px] text-muted-foreground">
-          AED {pricePerNight.toLocaleString()}/night × {nights}N × {rooms} room{rooms > 1 ? 's' : ''} · max {maxOccupancy}/room
+          {(() => {
+            const segPax = hotel.paxCount ?? pax;
+            const occLabel = hotel.occupancyType === 'SINGLE' ? 'Single' : hotel.occupancyType === 'TRIPLE' ? 'Triple' : 'Double';
+            return `${segPax} pax (${occLabel} occ.) → ${nights}N × ${rooms} room${rooms > 1 ? 's' : ''} · AED ${pricePerNight.toLocaleString()}/night`;
+          })()}
         </span>
         <div className="text-right">
           <span className="text-xs font-semibold text-primary">AED {total.toLocaleString()}</span>

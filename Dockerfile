@@ -23,7 +23,7 @@ RUN npm run build
 FROM base AS backend-deps
 COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
-RUN npm ci
+RUN npm install --omit=dev
 
 # ─── Backend: build ──────────────────────────────────────────────────────────
 FROM base AS backend-build

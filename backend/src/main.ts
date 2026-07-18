@@ -1,5 +1,8 @@
 import 'reflect-metadata';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
@@ -10,7 +13,7 @@ import { AppModule } from './app.module';
 import { setupSwagger } from './swagger';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
   // Structured logging (pino) as the app logger
   app.useLogger(app.get(Logger));
@@ -51,6 +54,17 @@ async function bootstrap(): Promise<void> {
 
   if (appCfg.swaggerEnabled) {
     setupSwagger(app, appCfg.apiPrefix);
+  }
+
+  // Serve React frontend when public/ exists (populated by Docker build)
+  const publicPath = join(__dirname, '..', 'public');
+  if (existsSync(publicPath)) {
+    app.useStaticAssets(publicPath);
+    // SPA fallback: non-API routes serve index.html so React Router works
+    app.use((req: any, res: any, next: any) => {
+      if (req.path.startsWith(`/${appCfg.apiPrefix}`)) return next();
+      res.sendFile('index.html', { root: publicPath });
+    });
   }
 
   await app.listen(appCfg.port);

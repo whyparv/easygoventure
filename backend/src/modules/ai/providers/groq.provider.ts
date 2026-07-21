@@ -11,10 +11,10 @@ import {
   ToolChatResult,
 } from './ai-provider.interface';
 
-/** Abort a request after this many ms. Single-call RAG prompts can be large. */
-const REQUEST_TIMEOUT_MS = 45_000;
-/** At most one retry (so a maximum of two attempts total), handled by the SDK. */
-const MAX_RETRIES = 1;
+/** Abort a Groq request after this many ms. Prompts are compact (≤800 output tokens). */
+const REQUEST_TIMEOUT_MS = 30_000;
+/** No SDK retries — a timed-out LLM call should fail fast, not double the wait. */
+const MAX_RETRIES = 0;
 
 /**
  * Groq AI provider - talks to the Groq Chat Completions API via the official

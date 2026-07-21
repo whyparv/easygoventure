@@ -26,7 +26,7 @@ type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
-  timeout: 30_000,
+  timeout: 60_000,
   headers: { 'Content-Type': 'application/json' },
 });
 

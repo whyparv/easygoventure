@@ -102,6 +102,16 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
+  /* Hide browser number-input spinners globally — compact grids use plain number fields */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

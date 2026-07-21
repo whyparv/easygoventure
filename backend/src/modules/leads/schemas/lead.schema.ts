@@ -81,6 +81,14 @@ export class LeadHotelOption {
 
   @Prop({ type: Boolean, default: false })
   recommended?: boolean;
+
+  /** How many pax share one room: SINGLE | DOUBLE | TRIPLE */
+  @Prop({ type: String, enum: ['SINGLE', 'DOUBLE', 'TRIPLE'] })
+  occupancyType?: 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+
+  /** Pax in this room segment when using mixed occupancy configs */
+  @Prop({ type: Number, min: 1 })
+  paxCount?: number;
 }
 
 export const LeadHotelOptionSchema = SchemaFactory.createForClass(LeadHotelOption);

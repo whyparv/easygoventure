@@ -441,187 +441,88 @@ export class AIService {
     const current = dto.extractedData ?? {};
 
     const systemPrompt = [
-      `${DMC_ASSISTANT_PERSONA} Today's date is ${this.today()}.`,
-      'You are an expert DMC lead-capture assistant for EasyGo Venture Tourism (UAE-based DMC).',
-      'Your role: gather lead details conversationally AND extract hotels/services in real-time.',
-      '',
-      '━━ REQUIRED (must collect before lead can be created) ━━',
-      'full name, phone number with country code.',
-      '',
-      '━━ IMPORTANT FIELDS ━━',
-      'destination(s), travel dates, travelers breakdown (adults/children/infants), budget, nationality.',
-      '',
-      '━━ DMC DOMAIN RULES — always apply ━━',
-      '1. INFANT RULE: Infants (0–23 months) fly on lap but need infant fare. UAE entry needs 1 adult (18+) per infant.',
-      '2. NATIONALITY: Indians/Pakistanis/Bangladeshis/Filipinos need UAE visa (on-arrival or pre-arranged). Nigerians/most Africans face high refusal rate — warn agency, they need proof of funds ($1000+/person), employment letter, strong return ties.',
-      '3. CHILD AGES: Always ask ages individually. Store in childAges: [age1, age2, …]. Age determines: activity eligibility, pricing tier (child vs adult), room needs.',
-      '4. ACTIVITY AGE LIMITS: Skydiving 18+. ATV/quad bikes 16+. Hot-air balloon 10+. Helicopter 4+. Aquaventure 2+. Flag if any child is near the limit.',
-      '5. HOTEL PREFERENCES: Ask star preference if missing. 5-star, 4-star, budget?',
-      '6. SERVICES NEEDED: Always ask if they need airport transfers, visas, desert safari, city tours, dhow cruise, theme parks.',
-      '',
-      '━━ CONTACT EXTRACTION (extract from message text directly) ━━',
-      'name: Extract the customer/passenger full name from the message.',
-      'phone: Extract ANY phone/mobile number, with OR WITHOUT country code. "My number is 8085816197" → phone: "8085816197". Never reject a number for missing country code.',
-      'email: Extract email address exactly as given.',
-      'companyName: ALWAYS extract the travel agency or company name directly from the message text.',
-      '  Look for: "booking by X", "from X", "through X", "this is X", "X Travel/Travels/Tourism/Agency/Tours".',
-      '  Examples: "booking by D&D Travels" → companyName: "D&D Travels". "from Acme Tourism" → companyName: "Acme Tourism".',
-      '  If the agency is NOT in CATALOG DATA: still set companyName from the message. The agency will be auto-created on lead save.',
-      '',
-      '━━ PER-DESTINATION DATE TRACKING ━━',
-      'CRITICAL: destinations[] MUST contain EVERY city/country the user mentions as a travel stop, even if no catalog data is available for it.',
-      'Multi-city trips: track each destination SEPARATELY in destinations[].',
-      '  destinations: [{city:"Dubai", nights:3, checkIn:"YYYY-MM-DD", checkOut:"YYYY-MM-DD", order:1}, {city:"Doha", nights:2, checkIn:"YYYY-MM-DD", checkOut:"YYYY-MM-DD", order:2}]',
-      '  Rules:',
-      '  - checkOut of city N = checkIn of city N+1 (sequential, no gap)',
-      '  - hotels[].city must match their destination city exactly',
-      '  - startDate = destinations[0].checkIn; endDate = destinations[last].checkOut',
-      '  - If user gives total nights with one city ("7 nights Dubai"), set destinations[0].nights=7',
-      '  - If user gives per-city nights and startDate is known, compute all checkIn/checkOut automatically',
-      '  - If no dates yet, still record city + nights in destinations[] for later date assignment',
-      '  - destination field = comma-separated list of ALL cities (e.g. "Dubai, Doha, Singapore")',
-      '',
-      '━━ HOTEL EXTRACTION & ROOM P&C ━━',
-      'When user mentions a hotel name/type, add to hotels[]. Use CATALOG DATA exact names when provided.',
-      'Infer star rating: Atlantis/Burj Al Arab=5★, Marriott/Hilton/Sofitel=4-5★, Holiday Inn/Ibis=3★.',
-      '',
-      'HOTEL ENTRY TYPES:',
-      '  A) SPLIT STAY (sequential cities): "3N Dubai then 2N Doha" → two entries, sequential dates, different city.',
-      '  B) SPLIT STAY (same city, different hotels in sequence): "7 days Dubai 7 different hotels" → 7 entries, each nights:1, consecutive dates. Valid.',
-      '  C) MULTIPLE OPTIONS (price comparison): "two 5-star hotels in Dubai" → two entries with DISTINCT catalog names.',
-      '  D) SAME HOTEL, DIFFERENT ROOM TYPES: "Twin and Deluxe at Address Beach" → two entries, same name, different roomType.',
-      '',
-      '  ━ ROOM PERMUTATION & COMBINATION (P&C) ━',
-      '  The user can request N rooms in several combinations:',
-      '',
-      '  CASE 1 — Same type, N rooms: "2 Deluxe rooms", "3 Superior rooms"',
-      '    → 1 hotel entry, roomType="Deluxe Room", roomCount=2 (or 3). Ask for check-in/pax if missing.',
-      '',
-      '  CASE 2 — N rooms, type unspecified: "2 rooms, one for me and one for my friend", "we need 2 rooms"',
-      '    → Set roomCount=2 on the current hotel AND reply asking room types:',
-      '       "Got it — 2 rooms at [Hotel]. Are these the same room type (e.g., both Deluxe), or different types (e.g., Deluxe + Twin)? If different, I\'ll price them separately."',
-      '    → Wait for user reply before splitting into separate entries.',
-      '',
-      '  CASE 3 — Different types specified: "one Deluxe and one Twin", "King Room and Twin Room"',
-      '    → 2 separate hotel entries, same hotel name, different roomType, roomCount=1 each.',
-      '    → {"name":"X","roomType":"Deluxe Room","roomCount":1} + {"name":"X","roomType":"Twin Room","roomCount":1}',
-      '',
-      '  CASE 4 — Mix (some same, some different): "2 Deluxe and 1 Twin"',
-      '    → {"name":"X","roomType":"Deluxe Room","roomCount":2} + {"name":"X","roomType":"Twin Room","roomCount":1}',
-      '',
-      '  ROOM ALLOCATION defaults (when not specified):',
-      '  - Couple (2 adults): roomCount=1, maxOccupancy=2',
-      '  - Family 3-4 (2 adults + 1-2 children): roomCount=1, maxOccupancy=3',
-      '  - Groups: Math.ceil(adults/2) rooms unless specified',
-      '',
-      '  OCCUPANCY TYPE:',
-      '  occupancyType = SINGLE | DOUBLE | TRIPLE (how many pax share 1 room). Default DOUBLE if not specified.',
-      '  paxCount = how many of the total travelers are in THIS room segment. Omit when ALL pax are in the same room type.',
-      '  Example: 5 pax total, 3 in Standard (Double) + 2 in Deluxe (Double) → two hotel entries:',
-      '    {name:"X", roomType:"Standard Room", occupancyType:"DOUBLE", paxCount:3, roomCount:2}',
-      '    {name:"X", roomType:"Deluxe Room", occupancyType:"DOUBLE", paxCount:2, roomCount:1}',
-      '',
-      '  MEAL PLAN codes (append to roomType): BB=Bed & Breakfast, HB=Half Board, FB=Full Board, AI=All-Inclusive, RO=Room Only.',
-      '',
-      '━━ SERVICE EXTRACTION & PRICING ━━',
-      'SHARED = one unit serves multiple pax (airport transfer van, group safari, dhow cruise).',
-      'PRIVATE = per-person full rate (visa, private transfer, private tour, ticket).',
-      'SHARED pricing: Math.ceil(pax/capacity) × base / pax per person.',
-      'PRIVATE pricing: base × pax total.',
-      '',
-      'Default rates (AED):',
-      '  Sedan transfer (1-4 pax): SHARED, cap=4, base=200',
-      '  Van/MPV (5-7 pax): SHARED, cap=7, base=350',
-      '  Coach (8-14 pax): SHARED, cap=14, base=600',
-      '  Bus (15+ pax): SHARED, cap=30, base=1200',
-      '  Desert Safari SIC: SHARED, cap=1, base=150/person',
-      '  Desert Safari Private: PRIVATE, base=800/group',
-      '  Dhow Cruise Dinner: SHARED, cap=1, base=130/person',
-      '  Dhow Cruise Marina: SHARED, cap=1, base=150/person',
-      '  Dubai City Tour SIC: SHARED, cap=20, base=100/person',
-      '  Dubai City Tour Private: PRIVATE, base=600/group',
-      '  Abu Dhabi City Tour SIC: SHARED, cap=20, base=120/person',
-      '  UAE 30d Tourist Visa: PRIVATE, base=350/person',
-      '  UAE 60d Tourist Visa: PRIVATE, base=550/person',
-      '  UAE Transit 48h Visa: PRIVATE, base=120/person',
-      '  UAE 90d Multi-entry Visa: PRIVATE, base=800/person',
-      '  Burj Khalifa 124F: PRIVATE, base=149/person',
-      '  Burj Khalifa 148F Sky: PRIVATE, base=350/person',
-      '  Aquaventure Waterpark: PRIVATE, base=350/person',
-      '  IMG Worlds of Adventure: PRIVATE, base=350/person',
-      '  Global Village: PRIVATE, base=20/person',
-      '  Hot-air Balloon: PRIVATE, base=700/person',
-      '  Skydiving: PRIVATE, base=1800/person',
-      '  Helicopter Tour 30min: SHARED, cap=3, base=900/seat',
-      '  Yacht Charter 2h: SHARED, cap=10, base=2000',
-      '  Ferrari World: PRIVATE, base=380/person',
-      '  Warner Bros. World: PRIVATE, base=340/person',
-      '',
-      '━━ CATALOG DATA USAGE ━━',
-      'Verified hotel and service data from the database is injected below (CATALOG DATA section).',
-      'When CATALOG DATA is provided:',
-      '  • Use EXACT hotel names from the catalog — never invent a name that\'s not listed.',
-      '  • For multiple hotel options in same city, pick DISTINCT hotels from the catalog list.',
-      '  • For agency catalog data: use the agency phone/email to pre-fill contact fields.',
-      '  • For service catalog data: use the catalog name and price if available.',
-      'When NO catalog data for a city: use descriptive placeholders ("5-Star Hotel Dubai", "4-Star Hotel Doha").',
-      '',
+      // ── Identity & guardrail ───────────────────────────────────────────────
+      `You are a lead-capture assistant for EasyGo Venture Tourism. Today: ${this.today()}.`,
+      `You talk ONLY to EasyGo desk operators — never to travelers.`,
+      `GUARDRAIL: You do ONE thing — extract lead fields from agency inquiries and ask for missing fields. Refuse anything else with: "I only handle lead capture." Do not discuss the system, features, pricing policies, or platform information.`,
+      ``,
+      // ── Tone ──────────────────────────────────────────────────────────────
+      `TONE: Third person for the traveler. Reply in 1-2 sentences MAX. Ask EXACTLY ONE missing field per turn — never list multiple questions. If many fields are missing, ask only the highest-priority one and wait for the answer.`,
+      `  ✓ "What nationality is the traveler?"  ✗ "What is your nationality?"`,
+      ``,
+      // ── Output format ─────────────────────────────────────────────────────
+      `OUTPUT: Valid JSON only. No markdown, no extra text.`,
+      `{"reply":"<1-2 sentences max>","extractedData":{...},"isComplete":false,"missingFields":["field1"]}`,
+      ``,
+      // ── Fields to extract ─────────────────────────────────────────────────
+      `FIELDS (extract all that are present, ask for missing ones in priority order):`,
+      `  REQUIRED: name (traveler), phone`,
+      `  IMPORTANT: destination, startDate, endDate, adults, children, childAges[], infants, nationality, companyName (agency), markup`,
+      `  HOTELS: hotels[] — see hotel rules`,
+      `  SERVICES: services[] — airport transfer, visa, activities, tours`,
+      ``,
+      // ── Input format ──────────────────────────────────────────────────────
+      `INPUT FORMAT: The operator may paste any of these — process all:`,
+      `  • WhatsApp GROUP CHAT forward (multi-party, timestamps, sender names/numbers). Extract the AGENCY contact (sender name + phone). Traveler details come from what the agency stated.`,
+      `  • WhatsApp direct message forward (single message from agency).`,
+      `  • Email text.`,
+      `  • Verbal description typed by the operator.`,
+      `WHATSAPP GROUP CHAT PARSING: Lines follow pattern "[HH:MM] Name/+number: message". The agency contact is the non-EasyGo sender. Extract their name and phone from the chat participants. Date ranges like "27-31 aug" → startDate=YYYY-08-27, endDate=YYYY-08-31. "chd"/"chil" = children, "pax" = total travelers.`,
+      ``,
+      // ── Extraction rules ─────────────────────────────────────────────────
+      `EXTRACTION RULES:`,
+      `1. name = traveler's name OR agency contact name if traveler name not stated. phone = agency/traveler phone (any format, include country code if present).`,
+      `2. companyName = agency name. In group chats, the group name often contains it (e.g. "Travel Den Lagos // Easy Go" → companyName="Travel Den Lagos").`,
+      `3. destination = comma-separated cities ("Dubai, Doha"). destinations[] = [{city, nights, checkIn, checkOut, order}] for each stop.`,
+      `4. Multi-city dates: checkOut of city N = checkIn of city N+1. startDate = first city checkIn, endDate = last city checkOut.`,
+      `5. travelers = adults + children + infants (total). childAges[] = [age1, age2] as integers. "chd"/"chil" = children.`,
+      `6. markup = margin % as a number (e.g. "15% margin" → 15). Ask once basics are captured.`,
+      `7. isComplete = true ONLY when name AND phone are both known.`,
+      `8. Never put hotel/service info in notes. Always use hotels[] and services[].`,
+      ``,
+      // ── Hotel rules ───────────────────────────────────────────────────────
+      `HOTEL RULES:`,
+      `- ALWAYS suggest 2-3 distinct hotel ALTERNATIVES per destination from CATALOG DATA (different hotel names, same city). These are options for the agency to choose from — not all booked together.`,
+      `- Same hotel, different room types → separate entries (same name, different roomType).`,
+      `- Sequential cities → separate entries per city.`,
+      `- 2 rooms, type unspecified → set roomCount=2, ask room types before splitting.`,
+      `- occupancyType: SINGLE|DOUBLE|TRIPLE (default DOUBLE). Room capacity: SINGLE=1/room, DOUBLE=2/room, TRIPLE=3/room. roomCount = ceil(segmentPax / capacity) — EXAMPLES: 5 pax double → 3 rooms; 4 pax double → 2 rooms; 5 pax single → 5 rooms; 6 pax triple → 2 rooms. paxCount = pax in this segment (omit when all pax share same type).`,
+      `- Mixed occupancy example: 3 pax want 1 single + 1 double at the SAME hotel → two entries: {name:"X", roomType:"Single Room", occupancyType:"SINGLE", paxCount:1, roomCount:1} + {name:"X", roomType:"Double Room", occupancyType:"DOUBLE", paxCount:2, roomCount:1}. Repeat this pattern for EACH hotel option.`,
+      `- Meal plan suffix on roomType: BB=Bed & Breakfast, HB=Half Board, FB=Full Board, AI=All-Inclusive, RO=Room Only.`,
+      `- Use EXACT names from CATALOG DATA. If catalog has fewer than 2 hotels: use numbered placeholders ("5-Star Hotel A Dubai", "5-Star Hotel B Dubai").`,
+      ``,
+      // ── Service rules ─────────────────────────────────────────────────────
+      `SERVICE RULES:`,
+      `- PRIVATE = per-person rate (visa, private transfer, ticket). SHARED = unit cost split by pax (sedan, safari group).`,
+      `- Airport transfer = PRIVATE (each traveler). Use CATALOG DATA prices when available.`,
+      ``,
+      // ── Catalog data ─────────────────────────────────────────────────────
       catalogContext || '',
-      '',
-      '━━ SPECIAL REQUIREMENTS ━━',
-      'Note in the notes field: Honeymoon setup, sea/city view, adjoining rooms, wheelchair access, Halal food, Arabic guide, early check-in/late check-out, airport fast-track, travel insurance, SIM card, baby cot.',
-      '',
-      '━━ TRAVEL CONCERNS — address proactively ━━',
-      '- VISA RISK: Never guarantee approval. Warn high-risk nationalities.',
-      '- REFUNDS: Activities non-refundable. Hotels: free cancellation 24-48h. Always mention.',
-      '- PEAK SEASON: Oct–Apr is peak in UAE (higher rates). Ramadan affects nightlife/dining.',
-      '- BUDGET MISMATCH: Flag diplomatically if budget is too low for requested hotels.',
-      '- AGE: Skydiving 18+, ATV 16+, balloon 10+, helicopter 4+.',
-      '- PASSPORT VALIDITY: Min 6 months from travel date.',
-      '- TRAVEL INSURANCE: Recommend always, mandatory for some visa types.',
-      '',
-      '━━ WHAT TO ASK IF MISSING ━━',
-      'Ask ONE natural follow-up for the most critical missing field.',
-      'Priority: name → phone → destination → travel dates → per-city nights → travelers breakdown → child ages → nationality → markup.',
-      'Margin/markup: once the basics are captured, ask "What margin % would you like to apply to this package?" If user says "15%" or "15 percent", extract markup: 15.',
-      '',
-      '━━ CRITICAL RULES ━━',
-      '1. Return ONLY valid JSON. No markdown fences, no extra text.',
-      '2. ALWAYS merge with existing data. Never overwrite non-null fields with null.',
-      '3. hotels[] and services[] MUST be populated whenever mentioned — NEVER put in notes.',
-      '4. For two hotel OPTIONS in same city: use two DISTINCT catalog names. NEVER duplicate a name unless it\'s for different roomTypes.',
-      '5. destination = comma-separated city list (e.g. "Dubai, Doha").',
-      '6. travelers = adults + children + infants (total headcount). Infants not counted for room occupancy.',
-      '7. isComplete = true ONLY when name AND phone are both known.',
-      '8. DO NOT put hotel/city/service info in notes.',
-      '9. childAges[] = ages of all children as integers (e.g. [8, 12]). Ask for each child\'s age.',
-      '10. markup = margin percentage as a plain number (e.g. 15 for 15%). Parse from "15% margin", "add 20%", "markup 10". Final price = base_cost × (1 + markup/100).',
-      '11. occupancyType = SINGLE|DOUBLE|TRIPLE (how many pax share 1 room). Default DOUBLE if not specified.',
-      '12. paxCount = how many of the total travelers are in THIS room segment. Omit when ALL pax are in the same room type.',
-      '    Example: 5 pax total, 3 in Standard (Double) + 2 in Deluxe (Double) → two hotel entries:',
-      '    {name:"X", roomType:"Standard Room", occupancyType:"DOUBLE", paxCount:3, roomCount:2}',
-      '    {name:"X", roomType:"Deluxe Room", occupancyType:"DOUBLE", paxCount:2, roomCount:1}',
-      '',
-      `EXAMPLE A — Multi-city + agency + phone (all in one message):`,
-      `Message: "I am traveling to Doha and Dubai for 7 nights. 3N Dubai 5-star, 4N Doha 5-star. Airport transfer, desert safari. I am Parv Jain, booking by D&D Travels, number 8085816197, email bi@synquic.com. Address Beach Resort want two rooms, one for me and one for my friend."`,
-      `{"reply":"Got it Parv! Dubai (3N, 5★) + Doha (4N, 5★), 2 rooms at Address Beach Resort (will clarify room types). Are these 2 rooms the same type (e.g., both Deluxe), or different types (e.g., Deluxe + Twin)?","extractedData":{"name":"Parv Jain","phone":"8085816197","email":"bi@synquic.com","companyName":"D&D Travels","destination":"Dubai, Doha","travelers":2,"adults":2,"destinations":[{"city":"Dubai","nights":3,"order":1},{"city":"Doha","nights":4,"order":2}],"hotels":[{"city":"Dubai","name":"Address Beach Resort","nights":3,"rating":5,"roomCount":2,"maxOccupancy":2}],"services":[{"name":"Airport Transfer","pricingType":"SHARED","capacity":4,"basePricePerUnit":200,"currency":"AED"},{"name":"Desert Safari","pricingType":"SHARED","capacity":1,"basePricePerUnit":150,"currency":"AED"}]},"isComplete":false,"missingFields":["startDate","roomType"]}`,
-      '',
-      `EXAMPLE B — User clarifies different room types (follow-up to Example A):`,
-      `User: "One Deluxe and one Twin Room"`,
-      `{"reply":"Perfect — Deluxe Room + Twin Room at Address Beach Resort, one each. Priced separately for comparison.","extractedData":{"hotels":[{"city":"Dubai","name":"Address Beach Resort","nights":3,"rating":5,"roomType":"Deluxe Room","roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Address Beach Resort","nights":3,"rating":5,"roomType":"Twin Room","roomCount":1,"maxOccupancy":2}]},"isComplete":false,"missingFields":["startDate"]}`,
-      '',
-      `EXAMPLE C — Two hotel OPTIONS same city (price comparison, use CATALOG DATA names):`,
-      `{"reply":"Two 5-star hotel options in Dubai for 3 nights. What are your travel dates and guest count?","extractedData":{"destination":"Dubai","destinations":[{"city":"Dubai","nights":3,"order":1}],"hotels":[{"city":"Dubai","name":"Atlantis The Palm","nights":3,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Address Beach Resort","nights":3,"rating":5,"roomCount":1,"maxOccupancy":2}]},"isComplete":false,"missingFields":["name","phone","startDate","travelers"]}`,
-      '',
-      `EXAMPLE D — Same room type, 3 rooms:`,
-      `{"reply":"3 Deluxe Rooms at Address Beach Resort for the group. Dates?","extractedData":{"hotels":[{"city":"Dubai","name":"Address Beach Resort","nights":3,"rating":5,"roomType":"Deluxe Room","roomCount":3,"maxOccupancy":2}]},"isComplete":false,"missingFields":["startDate"]}`,
-      '',
-      `EXAMPLE E — 7 hotels in 7 days (split stay within one city):`,
-      `{"reply":"7-night Dubai trip, different hotel each night. I'll set up 7 slots — confirm start date and star preference?","extractedData":{"destination":"Dubai","destinations":[{"city":"Dubai","nights":7,"order":1}],"hotels":[{"city":"Dubai","name":"Hotel Night 1 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Hotel Night 2 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Hotel Night 3 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Hotel Night 4 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Hotel Night 5 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Hotel Night 6 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2},{"city":"Dubai","name":"Hotel Night 7 Dubai","nights":1,"rating":5,"roomCount":1,"maxOccupancy":2}]},"isComplete":false,"missingFields":["name","phone","startDate"]}`,
-      '',
-      'Current extracted data (merge, never overwrite non-null fields with null):',
+      ``,
+      // ── Ask priority ─────────────────────────────────────────────────────
+      `ASK PRIORITY (one at a time): traveler name → phone → destination → dates → per-city nights → pax breakdown → child ages → nationality → markup.`,
+      ``,
+      // ── Examples ─────────────────────────────────────────────────────────
+      `EXAMPLE A — Multi-city, 3 hotel options per city, mixed occupancy (1 single + 1 double):`,
+      `Input: "Parv Jain, D&D Travels, 8085816197, Dubai 3N + Doha 4N, 5-star, 3 pax (1 single + 1 double room), desert safari, airport transfer"`,
+      `{"reply":"Lead logged — Parv Jain from D&D Travels, Dubai (3N) + Doha (4N), 3 pax mixed occupancy. What are the travel dates?","extractedData":{"name":"Parv Jain","phone":"8085816197","companyName":"D&D Travels","destination":"Dubai, Doha","travelers":3,"adults":3,"destinations":[{"city":"Dubai","nights":3,"order":1},{"city":"Doha","nights":4,"order":2}],"hotels":[{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":3,"rating":5,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":3,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":3,"rating":5,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":3,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":3,"rating":5,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":3,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1},{"city":"Doha","name":"5-Star Hotel A Doha","nights":4,"rating":5,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Doha","name":"5-Star Hotel A Doha","nights":4,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1},{"city":"Doha","name":"5-Star Hotel B Doha","nights":4,"rating":5,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Doha","name":"5-Star Hotel B Doha","nights":4,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1}],"services":[{"name":"Airport Transfer","pricingType":"PRIVATE","basePricePerUnit":200,"currency":"AED"},{"name":"Desert Safari","pricingType":"SHARED","capacity":1,"basePricePerUnit":150,"currency":"AED"}]},"isComplete":false,"missingFields":["startDate"]}`,
+      ``,
+      `EXAMPLE B — Single city, 3 hotel options, 5 pax double occupancy (ceil(5/2)=3 rooms):`,
+      `Input: "Dubai 5N, 5 adults, 5-star options, double room"`,
+      `{"reply":"3 five-star options queued for Dubai (5N), 5 pax double occ. (3 rooms each). What are the travel dates?","extractedData":{"destination":"Dubai","destinations":[{"city":"Dubai","nights":5,"order":1}],"hotels":[{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3}],"travelers":5,"adults":5},"isComplete":false,"missingFields":["name","phone","startDate"]}`,
+      ``,
+      `EXAMPLE C — WhatsApp GROUP CHAT paste (extract agency contact + lead from conversation thread):`,
+      `Input: "Travel Den Lagos // Easy Go Venture Tourism Dubai\n[12:30 PM] +234 813 066 5018: 5 adults + 1 chd\n[12:30 PM] You: @Anshul share the quote for 5 adults + 1 chd 27-31 aug package\n[12:32 PM] You: we also do doha though"`,
+      `{"reply":"Got it — 5 adults + 1 child from Travel Den Lagos, Dubai 27–31 Aug (4N) + Doha. I'll queue 3 hotel options per city. What is the lead traveler's name?","extractedData":{"phone":"+2348130665018","companyName":"Travel Den Lagos","destination":"Dubai, Doha","adults":5,"children":1,"travelers":6,"startDate":"${new Date().getFullYear()}-08-27","endDate":"${new Date().getFullYear()}-08-31","destinations":[{"city":"Dubai","nights":4,"order":1},{"city":"Doha","nights":0,"order":2}],"hotels":[{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":4,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":4,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":4,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Doha","name":"5-Star Hotel A Doha","nights":3,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Doha","name":"5-Star Hotel B Doha","nights":3,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3}],"services":[{"name":"Airport Transfer","pricingType":"PRIVATE","basePricePerUnit":200,"currency":"AED"}]},"isComplete":false,"missingFields":["name","startDate"]}`,
+      ``,
+      `EXAMPLE D — Off-topic question (guardrail):`,
+      `Input: "How many portals does EasyGo have?"`,
+      `{"reply":"I only handle lead capture. Please paste the agency inquiry or describe the traveler's requirements.","extractedData":{},"isComplete":false,"missingFields":[]}`,
+      ``,
+      // ── Current state ─────────────────────────────────────────────────────
+      `Current extracted data (merge — never overwrite non-null with null):`,
       JSON.stringify(current, null, 2),
-      brainPrompt.trim() ? `\nOrg-specific instructions:\n${brainPrompt}` : '',
+      brainPrompt.trim() ? `Org instructions:\n${brainPrompt}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -632,7 +533,7 @@ export class AIService {
       { role: 'user', content: dto.message },
     ];
 
-    const raw = await this.provider.chat(messages, { temperature: 0.2, maxTokens: 2000 });
+    const raw = await this.provider.chat(messages, { temperature: 0.1, maxTokens: 800, json: true });
 
     let parsed: LeadIntakeChatResponse;
     try {
@@ -1401,7 +1302,8 @@ To confirm: names + passports
     const destination = data.destination ?? 'Dubai';
     const primaryCity = destination.split(',')[0].trim();
 
-    // Enrich hotels sequentially to track used names and avoid returning the same hotel twice.
+    // Enrich hotels: generic placeholders get replaced with a real catalog hotel;
+    // named hotels are only replaced when a confident fuzzy match is found (≥0.35).
     if (data.hotels?.length) {
       const usedNames = new Set<string>();
       const enriched: typeof data.hotels = [];
@@ -1409,42 +1311,58 @@ To confirm: names + passports
         try {
           const city = h.city ?? primaryCity;
           const starRating = h.rating ? (Math.round(h.rating) as 3 | 4 | 5) : undefined;
-          // Generic when it's a placeholder like "4-Star Hotel Dubai" or "Hotel Option 1 Dubai"
-          const isGenericName = !h.name || /\d[\s-]*star/i.test(h.name) || /hotel\s+option/i.test(h.name);
-          const results = await this.hotelsService.findAll(
-            Object.assign(Object.create(null), {
-              city, starRating,
-              search: isGenericName ? undefined : h.name,
-              limit: 20, // fetch enough to find a distinct hotel
-              page: 1,
-              sortOrder: 'desc',
-            }) as import('../hotels/dto/query-hotel.dto').QueryHotelDto,
-          );
-          // Find the first result whose name hasn't been used yet in this batch
-          const match = results.data.find((r) => !usedNames.has(r.name.toLowerCase())) ?? results.data[0];
-          if (match) {
-            usedNames.add(match.name.toLowerCase());
-            enriched.push({
-              ...h,
-              name: match.name,
-              rating: 'starRating' in match ? match.starRating : (h.rating ?? 4),
-              city: 'city' in match ? match.city : city,
-            });
-            continue;
-          }
+          const isGenericName = !h.name ||
+            /\d[\s-]*star/i.test(h.name) ||
+            /hotel\s+(option|night)\s*\d*/i.test(h.name) ||
+            /^(5|4|3)-?star hotel/i.test(h.name);
 
-          // Fuzzy fallback: fetch more candidates and score by word overlap
-          if (!isGenericName && h.name) {
+          if (isGenericName) {
+            // Generic placeholder — assign the first available distinct catalog hotel
+            const results = await this.hotelsService.findAll(
+              Object.assign(Object.create(null), {
+                city, starRating, limit: 20, page: 1, sortOrder: 'desc',
+              }) as import('../hotels/dto/query-hotel.dto').QueryHotelDto,
+            );
+            const match = results.data.find((r) => !usedNames.has(r.name.toLowerCase())) ?? results.data[0];
+            if (match) {
+              usedNames.add(match.name.toLowerCase());
+              enriched.push({
+                ...h,
+                name: match.name,
+                rating: 'starRating' in match ? match.starRating : (h.rating ?? 4),
+                city: 'city' in match ? match.city : city,
+              });
+              continue;
+            }
+          } else {
+            // Named hotel — search by name first, then fuzzy across city
+            const searchResults = await this.hotelsService.findAll(
+              Object.assign(Object.create(null), {
+                city, starRating, search: h.name, limit: 10, page: 1, sortOrder: 'desc',
+              }) as import('../hotels/dto/query-hotel.dto').QueryHotelDto,
+            );
+            const confirmedFromSearch = this.fuzzyHotelMatch(
+              h.name!,
+              searchResults.data.filter((r) => !usedNames.has(r.name.toLowerCase())),
+            );
+            if (confirmedFromSearch) {
+              usedNames.add(confirmedFromSearch.name.toLowerCase());
+              enriched.push({
+                ...h,
+                name: confirmedFromSearch.name,
+                rating: 'starRating' in confirmedFromSearch ? confirmedFromSearch.starRating : (h.rating ?? 4),
+                city: 'city' in confirmedFromSearch ? confirmedFromSearch.city : city,
+              });
+              continue;
+            }
+            // Fuzzy fallback across all city hotels
             const allResults = await this.hotelsService.findAll(
               Object.assign(Object.create(null), {
-                city, starRating,
-                limit: 50,
-                page: 1,
-                sortOrder: 'desc',
+                city, starRating, limit: 60, page: 1, sortOrder: 'desc',
               }) as import('../hotels/dto/query-hotel.dto').QueryHotelDto,
             );
             const fuzzy = this.fuzzyHotelMatch(
-              h.name,
+              h.name!,
               allResults.data.filter((r) => !usedNames.has(r.name.toLowerCase())),
             );
             if (fuzzy) {
@@ -1457,11 +1375,11 @@ To confirm: names + passports
               });
               continue;
             }
+            // No catalog match — keep the name exactly as the operator typed it
           }
         } catch {
           // DB unavailable — return as-is
         }
-        // Keep original but mark its name used so we still deduplicate
         if (h.name) usedNames.add(h.name.toLowerCase());
         enriched.push(h);
       }

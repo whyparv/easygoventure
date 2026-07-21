@@ -249,7 +249,7 @@ export function LeadCreateDialog({
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [msgs, setMsgs] = useState<ChatMsg[]>([{
     id: 'init', role: 'assistant',
-    content: "Hi! Paste a WhatsApp message or describe the trip — I'll extract everything: names, hotels, services, dates, pricing.",
+    content: "Paste the agency's inquiry — WhatsApp group chat, direct message, email, or just describe it. I'll extract traveler name, phone, destination, dates, pax, hotels, and services.",
   }]);
   const [chatInput, setChatInput] = useState('');
   const [extracted, setExtracted] = useState<ExtractedLeadData>({});
@@ -289,7 +289,7 @@ export function LeadCreateDialog({
 
   const reset = () => {
     setFields(EMPTY);
-    setMsgs([{ id: 'init', role: 'assistant', content: "Hi! Paste a WhatsApp message or describe the trip — I'll extract everything: names, hotels, services, dates, pricing." }]);
+    setMsgs([{ id: 'init', role: 'assistant', content: "Paste the agency's inquiry (WhatsApp forward, email, etc.) or describe the lead — I'll extract the traveler's details, hotel requirements, services, and dates." }]);
     setChatInput(''); setExtracted({}); setMissing([]); setWhatsappGreeting(''); setMode('chat');
   };
   const close = () => { onOpenChange(false); setTimeout(reset, 200); };
@@ -506,43 +506,37 @@ export function LeadCreateDialog({
       </Section>
 
       {/* Hotels */}
-      <Section
-        icon={Building2}
-        label={`Hotels${fields.hotels.length > 0 ? ` (${fields.hotels.length})` : ''}`}
-        action={
-          <button onClick={addHotel} className="flex items-center gap-1 text-xs text-primary hover:underline">
-            <Plus className="size-3" /> Add
-          </button>
-        }
-      >
-        {fields.hotels.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">Mention hotels in the chat or click Add — AI will extract them automatically.</p>
-        ) : (
-          <div className="space-y-2.5">
-            {fields.hotels.map((hotel, i) => (
-              <HotelEditor
-                key={i}
-                hotel={hotel}
-                pax={pax}
-                onUpdate={(h) => set({ hotels: fields.hotels.map((old, j) => j === i ? h : old) })}
-                onRemove={() => set({ hotels: fields.hotels.filter((_, j) => j !== i) })}
-                onAddRoomType={() => {
-                  // Insert a sibling after this hotel with same dates/city/name but blank roomType
-                  const sibling: ExtractedHotel = {
-                    ...hotel,
-                    roomType: '',
-                    pricePerNight: undefined,
-                    roomCount: hotel.roomCount ?? 1,
-                  };
-                  const updated = [...fields.hotels];
-                  updated.splice(i + 1, 0, sibling);
-                  set({ hotels: updated });
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </Section>
+      {(() => {
+        const hotelGroups = buildExtractedGroups(fields.hotels);
+        return (
+          <Section
+            icon={Building2}
+            label={`Hotels${hotelGroups.length > 0 ? ` (${hotelGroups.length} option${hotelGroups.length > 1 ? 's' : ''})` : ''}`}
+            action={
+              <button onClick={addHotel} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                <Plus className="size-3" /> Add option
+              </button>
+            }
+          >
+            {fields.hotels.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Mention hotels in the chat or click Add — AI will extract them automatically.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {hotelGroups.map((group, groupIdx) => (
+                  <ExtractedHotelGroupCard
+                    key={group.key}
+                    group={group}
+                    groupIdx={groupIdx}
+                    allHotels={fields.hotels}
+                    pax={pax}
+                    onChange={(updated) => set({ hotels: updated })}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
+        );
+      })()}
 
       {/* Services */}
       <Section
@@ -669,7 +663,7 @@ export function LeadCreateDialog({
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
-                  placeholder="Paste WhatsApp message or describe the trip…"
+                  placeholder="Paste WhatsApp group chat, direct message, email, or describe the inquiry…"
                   disabled={intakeChat.isPending}
                   className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring disabled:opacity-50"
                 />
@@ -698,123 +692,221 @@ export function LeadCreateDialog({
   );
 }
 
-// ── Hotel editor ─────────────────────────────────────────────────────────────
+// ── Extracted hotel grouping (for create dialog) ──────────────────────────────
 
-function HotelEditor({
-  hotel, pax, onUpdate, onRemove, onAddRoomType,
+function extractedHotelGroupKey(h: ExtractedHotel): string {
+  return `${(h.name ?? '').trim()}|${(h.city ?? '').trim()}`.toLowerCase();
+}
+
+interface ExtractedHotelGroup {
+  key: string;
+  name: string;
+  city: string;
+  rating?: number;
+  indices: number[];
+}
+
+function buildExtractedGroups(hotels: ExtractedHotel[]): ExtractedHotelGroup[] {
+  const map = new Map<string, ExtractedHotelGroup>();
+  hotels.forEach((h, i) => {
+    const key = extractedHotelGroupKey(h);
+    if (!map.has(key)) {
+      map.set(key, { key, name: h.name ?? '', city: h.city ?? '', rating: h.rating, indices: [i] });
+    } else {
+      map.get(key)!.indices.push(i);
+    }
+  });
+  return [...map.values()];
+}
+
+function ExtractedHotelGroupCard({
+  group, groupIdx, allHotels, pax, onChange,
 }: {
-  hotel: ExtractedHotel;
+  group: ExtractedHotelGroup;
+  groupIdx: number;
+  allHotels: ExtractedHotel[];
   pax: number;
-  onUpdate: (h: ExtractedHotel) => void;
-  onRemove: () => void;
-  onAddRoomType?: () => void;
+  onChange: (updated: ExtractedHotel[]) => void;
 }) {
-  const pricing = calcHotelOption(hotel, pax);
-  const { nights, rooms, pricePerNight, total, pricePerPerson } = pricing;
+  const updateGroupHotel = (patch: Partial<ExtractedHotel>) =>
+    onChange(allHotels.map((h, i) => group.indices.includes(i) ? { ...h, ...patch } : h));
+
+  const updateRow = (idx: number, patch: Partial<ExtractedHotel>) =>
+    onChange(allHotels.map((h, i) => i === idx ? { ...h, ...patch } : h));
+
+  const removeRow = (idx: number) => onChange(allHotels.filter((_, i) => i !== idx));
+
+  const removeGroup = () => {
+    const drop = new Set(group.indices);
+    onChange(allHotels.filter((_, i) => !drop.has(i)));
+  };
+
+  const addRoomType = () => {
+    const lastIdx = group.indices[group.indices.length - 1];
+    const src = allHotels[lastIdx];
+    const newRow: ExtractedHotel = { ...src, roomType: '', pricePerNight: undefined, paxCount: undefined };
+    const updated = [...allHotels];
+    updated.splice(lastIdx + 1, 0, newRow);
+    onChange(updated);
+  };
+
+  const firstH = allHotels[group.indices[0]];
+  const firstPricing = calcHotelOption(firstH, pax);
 
   return (
-    <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-2.5 space-y-2">
-      <div className="flex items-center gap-1.5">
-        <div className="flex-1">
-          <HotelSearchInput
-            value={hotel.name ?? ''}
-            city={hotel.city}
-            onValueChange={(v) => onUpdate({ ...hotel, name: v })}
-            onSelect={(h) => onUpdate({ ...hotel, name: h.name, rating: h.starRating, city: h.city })}
-          />
-        </div>
-        {onAddRoomType && (
-          <button
-            type="button"
-            onClick={onAddRoomType}
-            title="Add another room type for this hotel"
-            className="flex items-center gap-0.5 text-[10px] text-primary hover:underline shrink-0 px-1"
-          >
-            <Plus className="size-3" /> Room type
-          </button>
+    <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+      {/* Option header */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border">
+        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+          Option {groupIdx + 1}
+        </span>
+        {group.name && (
+          <span className="text-xs text-muted-foreground truncate">
+            {group.name}{group.rating ? ` · ${group.rating}★` : ''}{group.city ? ` · ${group.city}` : ''}
+          </span>
         )}
-        <button onClick={onRemove} className="text-muted-foreground hover:text-danger shrink-0">
-          <X className="size-4" />
+        <button type="button" onClick={removeGroup} className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-danger transition-colors" title="Remove option">
+          <X className="size-3.5" />
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
-        <div>
-          <label className="text-[10px] text-muted-foreground">City</label>
-          <Input value={hotel.city ?? ''} onChange={(e) => onUpdate({ ...hotel, city: e.target.value })} placeholder="Dubai" className="text-xs h-7" />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Stars</label>
-          <Input type="number" min={1} max={5} value={hotel.rating ?? ''} onChange={(e) => onUpdate({ ...hotel, rating: Number(e.target.value) })} placeholder="4" className="text-xs h-7" />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Rooms</label>
-          <Input type="number" min={1} value={rooms} onChange={(e) => onUpdate({ ...hotel, roomCount: Number(e.target.value) })} className="text-xs h-7" />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Room type</label>
-          <RoomTypeInput
-            value={hotel.roomType ?? ''}
-            onChange={(roomType) => onUpdate({ ...hotel, roomType })}
-            placeholder="Deluxe Room"
-            className="text-xs h-7"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Occupancy</label>
-          <Select
-            value={hotel.occupancyType ?? 'DOUBLE'}
-            onChange={(e) => {
-              const type = e.target.value as 'SINGLE' | 'DOUBLE' | 'TRIPLE';
-              onUpdate({ ...hotel, occupancyType: type, maxOccupancy: occupancyToMax(type) });
-            }}
-            options={[
-              { value: 'SINGLE', label: 'Single (1/rm)' },
-              { value: 'DOUBLE', label: 'Double (2/rm)' },
-              { value: 'TRIPLE', label: 'Triple (3/rm)' },
-            ]}
-            className="text-xs h-7"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Pax (segment)</label>
+
+      <div className="p-3 space-y-3">
+        {/* Hotel-level: name, city, stars */}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
+            <HotelSearchInput
+              value={group.name}
+              city={group.city}
+              onValueChange={(v) => updateGroupHotel({ name: v })}
+              onSelect={(h) => updateGroupHotel({ name: h.name, rating: h.starRating, city: h.city })}
+            />
+          </div>
           <Input
-            type="number"
-            min={1}
-            value={hotel.paxCount ?? ''}
-            onChange={(e) => onUpdate({ ...hotel, paxCount: e.target.value === '' ? undefined : Number(e.target.value) })}
-            placeholder={`of ${pax}`}
-            title="Pax in this room segment — leave blank to use total pax"
-            className="text-xs h-7"
+            type="number" min={1} max={5}
+            value={group.rating ?? ''}
+            onChange={(e) => updateGroupHotel({ rating: Number(e.target.value) || undefined })}
+            placeholder="★" className="w-14 h-9 text-sm text-center shrink-0"
+            title="Star rating"
+          />
+          <Input
+            value={group.city}
+            onChange={(e) => updateGroupHotel({ city: e.target.value })}
+            placeholder="City" className="w-28 h-9 text-sm shrink-0"
           />
         </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">AED/night</label>
-          <Input type="number" min={0} value={pricePerNight} onChange={(e) => onUpdate({ ...hotel, pricePerNight: Number(e.target.value) || undefined })} className="text-xs h-7" />
+
+        {/* Room-type rows */}
+        <div className="rounded-md border border-border overflow-hidden">
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_68px_60px_52px_68px_52px_32px] bg-muted/60 border-b border-border">
+            {['Room type', 'Occ.', 'Pax', 'Rooms', 'AED/night', 'Nights', ''].map((label) => (
+              <div key={label} className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground">{label}</div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {group.indices.map((optIdx, rowIdx) => {
+            const h = allHotels[optIdx];
+            const pricing = calcHotelOption(h, pax);
+            return (
+              <div
+                key={optIdx}
+                className={cn(
+                  'grid grid-cols-[1fr_68px_60px_52px_68px_52px_32px] items-center',
+                  rowIdx < group.indices.length - 1 && 'border-b border-border/60',
+                )}
+              >
+                <div className="px-1 py-1">
+                  <RoomTypeInput
+                    value={h.roomType ?? ''}
+                    onChange={(roomType) => updateRow(optIdx, { roomType })}
+                    placeholder="e.g. Deluxe BB"
+                    className="text-xs h-7 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:border-b focus-visible:border-primary rounded-none px-1"
+                  />
+                </div>
+                <div className="px-1 py-1">
+                  <Select
+                    value={h.occupancyType ?? 'DOUBLE'}
+                    onChange={(e) => {
+                      const type = e.target.value as 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+                      updateRow(optIdx, { occupancyType: type, maxOccupancy: occupancyToMax(type), roomCount: undefined });
+                    }}
+                    options={[
+                      { value: 'SINGLE', label: 'Single' },
+                      { value: 'DOUBLE', label: 'Double' },
+                      { value: 'TRIPLE', label: 'Triple' },
+                    ]}
+                    className="text-xs h-7 border-0 bg-transparent shadow-none"
+                  />
+                </div>
+                <div className="px-1 py-1">
+                  <Input
+                    type="number" min={1}
+                    value={h.paxCount ?? ''}
+                    onChange={(e) => updateRow(optIdx, { paxCount: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    placeholder={`${pax}`}
+                    title="Pax in this segment (leave blank for all)"
+                    className="text-xs h-7 border-0 bg-transparent shadow-none text-center px-1"
+                  />
+                </div>
+                <div className="px-1 py-1">
+                  <Input
+                    type="number" min={1}
+                    value={pricing.rooms}
+                    onChange={(e) => updateRow(optIdx, { roomCount: e.target.value === '' ? undefined : Number(e.target.value) || 1 })}
+                    className="text-xs h-7 border-0 bg-transparent shadow-none text-center px-1"
+                  />
+                </div>
+                <div className="px-1 py-1">
+                  <Input
+                    type="number" min={0}
+                    value={h.pricePerNight ?? ''}
+                    onChange={(e) => updateRow(optIdx, { pricePerNight: Number(e.target.value) || undefined })}
+                    placeholder="0"
+                    className="text-xs h-7 border-0 bg-transparent shadow-none text-center px-1"
+                  />
+                </div>
+                <div className="px-1 py-1">
+                  <Input
+                    type="number" min={1}
+                    value={h.nights ?? ''}
+                    onChange={(e) => updateRow(optIdx, { nights: Number(e.target.value) || 1 })}
+                    placeholder="1"
+                    className="text-xs h-7 border-0 bg-transparent shadow-none text-center px-1"
+                  />
+                </div>
+                <div className="flex items-center justify-center px-1 py-1">
+                  <button
+                    type="button"
+                    onClick={() => removeRow(optIdx)}
+                    disabled={group.indices.length === 1}
+                    className="rounded p-0.5 text-muted-foreground hover:text-danger disabled:opacity-20 transition-colors"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Add room type */}
+          <div className="border-t border-border/60 bg-muted/30 px-2 py-1.5">
+            <button
+              type="button"
+              onClick={addRoomType}
+              className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+            >
+              <Plus className="size-3" /> Add room type
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Check-in</label>
-          <Input type="date" value={hotel.checkIn ?? ''} onChange={(e) => onUpdate({ ...hotel, checkIn: e.target.value })} className="text-xs h-7" />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Check-out</label>
-          <Input type="date" value={hotel.checkOut ?? ''} onChange={(e) => onUpdate({ ...hotel, checkOut: e.target.value })} className="text-xs h-7" />
-        </div>
-        <div>
-          <label className="text-[10px] text-muted-foreground">Nights</label>
-          <Input type="number" min={1} value={hotel.nights ?? ''} onChange={(e) => onUpdate({ ...hotel, nights: Number(e.target.value) })} placeholder="1" className="text-xs h-7" />
-        </div>
-      </div>
-      <div className="flex items-center justify-between pt-0.5">
-        <span className="text-[10px] text-muted-foreground">
-          {(() => {
-            const segPax = hotel.paxCount ?? pax;
-            const occLabel = hotel.occupancyType === 'SINGLE' ? 'Single' : hotel.occupancyType === 'TRIPLE' ? 'Triple' : 'Double';
-            return `${segPax} pax (${occLabel} occ.) → ${nights}N × ${rooms} room${rooms > 1 ? 's' : ''} · AED ${pricePerNight.toLocaleString()}/night`;
-          })()}
-        </span>
-        <div className="text-right">
-          <span className="text-xs font-semibold text-primary">AED {total.toLocaleString()}</span>
-          <span className="text-[10px] text-muted-foreground ml-1.5">(AED {pricePerPerson}/pax)</span>
+
+        {/* Pricing summary */}
+        <div className="flex items-center justify-between rounded-md bg-primary/5 border border-primary/10 px-3 py-1.5">
+          <span className="text-[11px] text-muted-foreground">
+            {(firstH.paxCount ?? pax)} pax · {firstH.occupancyType === 'SINGLE' ? 'Single' : firstH.occupancyType === 'TRIPLE' ? 'Triple' : 'Double'} occ. · {firstPricing.nights} night{firstPricing.nights > 1 ? 's' : ''}
+          </span>
+          <span className="text-xs font-semibold text-primary">AED {firstPricing.pricePerPerson.toLocaleString()}/pax</span>
         </div>
       </div>
     </div>

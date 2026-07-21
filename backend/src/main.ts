@@ -67,7 +67,11 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  await app.listen(appCfg.port);
+  const server = await app.listen(appCfg.port);
+  // Keep-alive must exceed the longest AI request (Groq timeout = 30s).
+  // Express defaults to 5s which causes "socket hang up" on slow AI calls.
+  server.keepAliveTimeout = 35_000;
+  server.headersTimeout = 36_000;
 
   const logger = app.get(Logger);
   logger.log(

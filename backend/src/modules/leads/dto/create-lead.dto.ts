@@ -100,6 +100,17 @@ export class LeadHotelOptionDto {
   @IsOptional()
   @IsBoolean()
   recommended?: boolean;
+
+  @ApiPropertyOptional({ enum: ['SINGLE', 'DOUBLE', 'TRIPLE'], description: 'How many pax share one room' })
+  @IsOptional()
+  @IsIn(['SINGLE', 'DOUBLE', 'TRIPLE'])
+  occupancyType?: 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+
+  @ApiPropertyOptional({ example: 3, minimum: 1, description: 'Pax in this room segment (for mixed configs)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  paxCount?: number;
 }
 
 export class LeadHotelDto {

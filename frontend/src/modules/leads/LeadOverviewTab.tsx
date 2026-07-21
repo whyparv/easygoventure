@@ -9,6 +9,7 @@ import {
   Star,
   Trash2,
   Wrench,
+  X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { servicesService } from '@shared/services/services.service';
@@ -726,6 +727,37 @@ function ServiceInlineSearch({
   );
 }
 
+// ── Hotel grouping (same key as whatsapp.ts) ──────────────────────────────────
+
+function hotelGroupKey(opt: LeadHotelOption): string {
+  return `${(opt.name ?? '').trim()}|${(opt.location ?? '').trim()}|${opt.starRating ?? ''}`.toLowerCase();
+}
+
+interface HotelGroup {
+  key: string;
+  name: string;
+  starRating?: number;
+  location?: string;
+  recommended: boolean;
+  /** indices into the flat options[] array */
+  indices: number[];
+}
+
+function buildHotelGroups(options: LeadHotelOption[]): HotelGroup[] {
+  const map = new Map<string, HotelGroup>();
+  options.forEach((opt, i) => {
+    const key = hotelGroupKey(opt);
+    if (!map.has(key)) {
+      map.set(key, { key, name: opt.name ?? '', starRating: opt.starRating, location: opt.location, recommended: opt.recommended ?? false, indices: [i] });
+    } else {
+      const g = map.get(key)!;
+      g.recommended = g.recommended || (opt.recommended ?? false);
+      g.indices.push(i);
+    }
+  });
+  return [...map.values()];
+}
+
 const emptyOption: LeadHotelOption = {
   name: '',
   starRating: undefined,
@@ -756,156 +788,259 @@ function HotelOptionsEditor({
   onChange: (v: LeadHotelOption[]) => void;
   suggestions?: string[];
 }) {
-  const update = (i: number, patch: Partial<LeadHotelOption>) =>
-    onChange(options.map((o, idx) => (
-      idx === i
-        ? normalizeHotelOption({ ...o, ...patch }, { pax, fallbackNights: defaultNights, fallbackCurrency: sourceCurrency })
-        : o
-    )));
+  const groups = buildHotelGroups(options);
 
-  const remove = (i: number) => onChange(options.filter((_, idx) => idx !== i));
+  const norm = (o: LeadHotelOption) =>
+    normalizeHotelOption(o, { pax, fallbackNights: defaultNights, fallbackCurrency: sourceCurrency });
 
-  const add = () =>
-    onChange([...options, normalizeHotelOption({ ...emptyOption }, { pax, fallbackNights: defaultNights })]);
+  // Update hotel-level fields across all entries in the group
+  const updateGroupHotel = (groupKey: string, patch: { name?: string; starRating?: number; location?: string }) =>
+    onChange(options.map((o, i) => {
+      const g = groups.find((g2) => g2.key === groupKey);
+      if (!g?.indices.includes(i)) return o;
+      return norm({ ...o, ...patch });
+    }));
 
-  const addNamed = (name: string) =>
-    onChange([...options, normalizeHotelOption({ ...emptyOption, name }, { pax, fallbackNights: defaultNights })]);
+  // Update one room-type row by flat index
+  const updateRoom = (idx: number, patch: Partial<LeadHotelOption>) =>
+    onChange(options.map((o, i) => i === idx ? norm({ ...o, ...patch }) : o));
 
-  // Only one option can be the recommended hotel.
-  const setRecommended = (i: number) =>
-    onChange(options.map((o, idx) => ({ ...o, recommended: idx === i ? !o.recommended : false })));
+  // Remove one room-type row (keep at least 1 per group enforced by UI)
+  const removeRoom = (idx: number) => onChange(options.filter((_, i) => i !== idx));
+
+  // Remove all entries for an option (hotel group)
+  const removeOption = (groupKey: string) => {
+    const g = groups.find((g2) => g2.key === groupKey);
+    if (!g) return;
+    const drop = new Set(g.indices);
+    onChange(options.filter((_, i) => !drop.has(i)));
+  };
+
+  // Add a new room-type row inside an existing group
+  const addRoomType = (groupKey: string) => {
+    const g = groups.find((g2) => g2.key === groupKey);
+    if (!g) return;
+    const lastIdx = g.indices[g.indices.length - 1];
+    const source = options[lastIdx];
+    const newRow = norm({ ...source, roomType: '', pricePerNight: undefined, paxCount: undefined, occupancyType: 'DOUBLE', recommended: false });
+    const updated = [...options];
+    updated.splice(lastIdx + 1, 0, newRow);
+    onChange(updated);
+  };
+
+  // Add a brand-new empty hotel option
+  const addOption = () => onChange([...options, norm({ ...emptyOption })]);
+  const addNamed = (name: string) => onChange([...options, norm({ ...emptyOption, name })]);
+
+  // Toggle recommended — only one group at a time
+  const setRecommended = (groupKey: string) => {
+    const g = groups.find((g2) => g2.key === groupKey);
+    if (!g) return;
+    const nowRec = g.recommended;
+    onChange(options.map((o, i) => ({ ...o, recommended: g.indices.includes(i) ? !nowRec : false })));
+  };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <SuggestionRow label="Requested by client" items={suggestions} onAdd={addNamed} />
-      {options.length === 0 && (
-        <p className="text-sm text-muted-foreground">No hotel options yet. Add one or two to quote.</p>
+      {groups.length === 0 && (
+        <p className="text-sm text-muted-foreground">No hotel options yet. Add one to start quoting.</p>
       )}
-      {options.map((rawOpt, i) => {
-        const opt = normalizeHotelOption(rawOpt, { pax, fallbackNights: defaultNights, fallbackCurrency: sourceCurrency });
+
+      {groups.map((group, groupIdx) => {
+        const normOpts = group.indices.map((i) => norm(options[i]));
+        const hasMixed = normOpts.some((o) => o.paxCount != null && o.paxCount > 0 && o.paxCount < pax);
+        let blendedAed: number | null = null;
+        if (hasMixed) {
+          let cost = 0, alloc = 0;
+          for (const o of normOpts) { const sp = o.paxCount ?? pax; cost += (o.pricePerPerson ?? 0) * sp; alloc += sp; }
+          if (alloc > 0) blendedAed = Math.round(cost / pax);
+        }
+        const totalRooms = normOpts.reduce((s, o) => s + (o.roomCount ?? 1), 0);
+
         return (
-        <div key={i} className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground">Option {i + 1}</span>
-            <button
-              type="button"
-              onClick={() => setRecommended(i)}
-              className={
-                opt.recommended
+          <div key={group.key} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            {/* Option header */}
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/50 border-b border-border">
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary shrink-0">
+                Option {groupIdx + 1}
+              </span>
+              {group.name && <span className="text-sm text-foreground font-medium truncate">{group.name}{group.starRating ? ` · ${group.starRating}★` : ''}{group.location ? ` · ${group.location}` : ''}</span>}
+              <button
+                type="button"
+                onClick={() => setRecommended(group.key)}
+                className={group.recommended
                   ? 'ml-auto inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success'
-                  : 'ml-auto inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground'
-              }
-              title="Mark as recommended"
-            >
-              <Star className={opt.recommended ? 'size-3.5 fill-current' : 'size-3.5'} />
-              {opt.recommended ? 'Recommended' : 'Recommend'}
-            </button>
-            <button
-              type="button"
-              onClick={() => remove(i)}
-              className="text-muted-foreground hover:text-danger"
-              aria-label="Remove option"
-            >
-              <Trash2 className="size-4" />
-            </button>
+                  : 'ml-auto inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground'}
+              >
+                <Star className={group.recommended ? 'size-3.5 fill-current' : 'size-3.5'} />
+                {group.recommended ? 'Recommended' : 'Recommend'}
+              </button>
+              <button type="button" onClick={() => removeOption(group.key)} className="text-muted-foreground hover:text-danger" aria-label="Remove option">
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {/* Hotel-level: name / stars / location */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <HotelAutocomplete
+                    value={group.name}
+                    onChange={(name) => updateGroupHotel(group.key, { name })}
+                    onSelect={(h) => updateGroupHotel(group.key, {
+                      name: h.name,
+                      starRating: h.starRating,
+                      location: [h.area, h.city].filter(Boolean).join(', '),
+                    })}
+                  />
+                </div>
+                <Input
+                  type="number" min={0} max={7}
+                  value={group.starRating ?? ''}
+                  onChange={(e) => updateGroupHotel(group.key, { starRating: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  placeholder="★" className="w-14 text-center"
+                />
+                <Input
+                  value={group.location ?? ''}
+                  onChange={(e) => updateGroupHotel(group.key, { location: e.target.value })}
+                  placeholder="City / area" className="w-36"
+                />
+              </div>
+
+              {/* Room-type rows */}
+              <div className="rounded-md border border-border overflow-hidden">
+                {/* Column headers */}
+                <div className="grid grid-cols-[1fr_90px_80px_68px_80px_60px_36px] bg-muted/60 border-b border-border">
+                  {['Room type', 'Occupancy', 'Seg. pax', 'Rooms', 'AED / night', 'Nights', ''].map((h) => (
+                    <div key={h} className="px-2.5 py-2 text-[10px] font-medium text-muted-foreground">{h}</div>
+                  ))}
+                </div>
+
+                {group.indices.map((optIdx, rowIdx) => {
+                  const opt = normOpts[rowIdx];
+                  return (
+                    <div
+                      key={optIdx}
+                      className={`grid grid-cols-[1fr_90px_80px_68px_80px_60px_36px] items-center${rowIdx < group.indices.length - 1 ? ' border-b border-border/60' : ''}`}
+                    >
+                      <div className="px-2 py-1.5">
+                        <RoomTypeInput
+                          value={opt.roomType ?? ''}
+                          onChange={(roomType) => updateRoom(optIdx, { roomType })}
+                          placeholder="e.g. Deluxe BB"
+                          className="border-0 bg-transparent shadow-none focus-visible:ring-0 rounded-none px-0"
+                        />
+                      </div>
+                      <div className="px-1 py-1.5">
+                        <Select
+                          value={opt.occupancyType ?? 'DOUBLE'}
+                          onChange={(e) => {
+                            const type = e.target.value as 'SINGLE' | 'DOUBLE' | 'TRIPLE';
+                            updateRoom(optIdx, { occupancyType: type, maxOccupancy: occupancyToMax(type), roomCount: undefined });
+                          }}
+                          options={[
+                            { value: 'SINGLE', label: 'Single' },
+                            { value: 'DOUBLE', label: 'Double' },
+                            { value: 'TRIPLE', label: 'Triple' },
+                          ]}
+                          className="border-0 bg-transparent shadow-none text-sm"
+                        />
+                      </div>
+                      <div className="px-1 py-1.5">
+                        <Input
+                          type="number" min={1}
+                          value={opt.paxCount ?? ''}
+                          onChange={(e) => updateRoom(optIdx, { paxCount: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          placeholder={`${pax}`}
+                          title="Pax in this segment (leave blank for all pax)"
+                          className="border-0 bg-transparent shadow-none text-center px-1"
+                        />
+                      </div>
+                      <div className="px-1 py-1.5">
+                        <Input
+                          type="number" min={1}
+                          value={opt.roomCount ?? ''}
+                          onChange={(e) => updateRoom(optIdx, { roomCount: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          placeholder="1"
+                          className="border-0 bg-transparent shadow-none text-center px-1"
+                        />
+                      </div>
+                      <div className="px-1 py-1.5">
+                        <Input
+                          type="number" min={0}
+                          value={opt.pricePerNight ?? ''}
+                          onChange={(e) => updateRoom(optIdx, { pricePerNight: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          placeholder="0"
+                          className="border-0 bg-transparent shadow-none text-center px-1"
+                        />
+                      </div>
+                      <div className="px-1 py-1.5">
+                        <Input
+                          type="number" min={1}
+                          value={opt.nights ?? ''}
+                          onChange={(e) => updateRoom(optIdx, { nights: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          placeholder="1"
+                          className="border-0 bg-transparent shadow-none text-center px-1"
+                        />
+                      </div>
+                      <div className="flex items-center justify-center px-1 py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => removeRoom(optIdx)}
+                          disabled={group.indices.length === 1}
+                          className="rounded p-0.5 text-muted-foreground hover:text-danger disabled:opacity-20 transition-colors"
+                          title="Remove room type"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Add row */}
+                <div className="border-t border-border/60 bg-muted/30 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => addRoomType(group.key)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Plus className="size-3" /> Add room type
+                  </button>
+                </div>
+              </div>
+
+              {/* Pricing summary */}
+              <div className="flex items-center justify-between rounded-md bg-primary/5 border border-primary/10 px-3 py-2 text-xs">
+                <span className="text-muted-foreground">
+                  {hasMixed
+                    ? normOpts.map((o) => {
+                        const sp = o.paxCount ?? pax;
+                        const lbl = o.occupancyType === 'SINGLE' ? 'Single' : o.occupancyType === 'TRIPLE' ? 'Triple' : 'Double';
+                        return `${sp} pax (${lbl})`;
+                      }).join(' + ')
+                    : (() => {
+                        const o = normOpts[0];
+                        const lbl = o?.occupancyType === 'SINGLE' ? 'Single' : o?.occupancyType === 'TRIPLE' ? 'Triple' : 'Double';
+                        return `${pax} pax · ${lbl} occ. · ${totalRooms} room${totalRooms > 1 ? 's' : ''}`;
+                      })()}
+                </span>
+                <span className="font-semibold text-primary">
+                  {blendedAed != null
+                    ? `AED ${blendedAed.toLocaleString()}/pax (blended)`
+                    : (() => {
+                        const o = normOpts[0];
+                        return o?.pricePerPerson != null ? `AED ${Math.round(o.pricePerPerson).toLocaleString()}/pax` : '—';
+                      })()}
+                </span>
+              </div>
+            </div>
           </div>
-          <HotelAutocomplete
-            value={opt.name}
-            onChange={(name) => update(i, { name })}
-            onSelect={(h) =>
-              update(i, {
-                name: h.name,
-                starRating: h.starRating,
-                location: [h.area, h.city].filter(Boolean).join(', '),
-              })
-            }
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="number"
-              min={0}
-              max={7}
-              value={opt.starRating ?? ''}
-              onChange={(e) => update(i, { starRating: e.target.value === '' ? undefined : Number(e.target.value) })}
-              placeholder="Stars"
-            />
-            <Input
-              value={opt.location ?? ''}
-              onChange={(e) => update(i, { location: e.target.value })}
-              placeholder="Location"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <RoomTypeInput
-              value={opt.roomType ?? ''}
-              onChange={(roomType) => update(i, { roomType })}
-              placeholder="Room type"
-            />
-            <Input
-              type="number"
-              min={0}
-              value={opt.pricePerNight ?? ''}
-              onChange={(e) =>
-                update(i, { pricePerNight: e.target.value === '' ? undefined : Number(e.target.value) })
-              }
-              placeholder={`AED/night (${currency})`}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <Input
-              type="number"
-              min={1}
-              value={opt.roomCount ?? ''}
-              onChange={(e) => update(i, { roomCount: e.target.value === '' ? undefined : Number(e.target.value) })}
-              placeholder="Rooms"
-            />
-            <Select
-              value={opt.occupancyType ?? 'DOUBLE'}
-              onChange={(e) => {
-                const type = e.target.value as 'SINGLE' | 'DOUBLE' | 'TRIPLE';
-                update(i, { occupancyType: type, maxOccupancy: occupancyToMax(type) });
-              }}
-              options={[
-                { value: 'SINGLE', label: 'Single (1/room)' },
-                { value: 'DOUBLE', label: 'Double (2/room)' },
-                { value: 'TRIPLE', label: 'Triple (3/room)' },
-              ]}
-            />
-            <Input
-              type="number"
-              min={1}
-              value={opt.nights ?? ''}
-              onChange={(e) => update(i, { nights: e.target.value === '' ? undefined : Number(e.target.value) })}
-              placeholder="Nights"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            <Input
-              type="number"
-              min={1}
-              value={opt.paxCount ?? ''}
-              onChange={(e) => update(i, { paxCount: e.target.value === '' ? undefined : Number(e.target.value) })}
-              placeholder={`Pax in segment (of ${pax} total) — for mixed room type packages`}
-              title="Pax in this room segment — set only for mixed room type packages"
-            />
-          </div>
-          <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
-            <span className="text-muted-foreground">
-              {(() => {
-                const segPax = opt.paxCount ?? pax;
-                const occLabel = opt.occupancyType === 'SINGLE' ? 'Single' : opt.occupancyType === 'TRIPLE' ? 'Triple' : 'Double';
-                return `${segPax} pax (${occLabel} occ.) → ${opt.roomCount} room${opt.roomCount && opt.roomCount > 1 ? 's' : ''}`;
-              })()}
-            </span>
-            <span className="font-semibold text-primary">
-              AED {(opt.totalPrice ?? 0).toLocaleString()} total
-              {opt.pricePerPerson != null ? ` · AED ${opt.pricePerPerson}/pax` : ''}
-            </span>
-          </div>
-        </div>
         );
       })}
-      <Button type="button" variant="secondary" onClick={add}>
+
+      <Button type="button" variant="secondary" onClick={addOption}>
         <Plus className="size-4" /> Add hotel option
       </Button>
     </div>

@@ -49,6 +49,13 @@ export const throttleConfig = registerAs('throttle', () => ({
 }));
 
 export const aiConfig = registerAs('ai', () => ({
+  openrouterApiKey: env.OPENROUTER_API_KEY,
+  openrouterBaseUrl: env.OPENROUTER_BASE_URL,
+  openrouterModel: env.OPENROUTER_MODEL,
+  openrouterSiteUrl: env.OPENROUTER_SITE_URL,
+  openrouterSiteName: env.OPENROUTER_SITE_NAME,
+  anthropicApiKey: env.ANTHROPIC_API_KEY,
+  anthropicModel: env.ANTHROPIC_MODEL,
   groqApiKey: env.GROQ_API_KEY,
   groqModel: env.GROQ_MODEL,
   groqReasoningEffort: env.GROQ_REASONING_EFFORT,

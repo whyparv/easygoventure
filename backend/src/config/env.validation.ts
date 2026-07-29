@@ -16,7 +16,17 @@ export const envSchema = z.object({
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   MONGODB_DB_NAME: z.string().default('dmc_crm'),
 
-  // AI provider (Groq). AI endpoints are disabled when GROQ_API_KEY is unset.
+  // AI provider priority: OpenRouter → Anthropic → Groq.
+  // Set at least one API key for AI features to work.
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
+  OPENROUTER_MODEL: z.string().default('openai/gpt-4o'),
+  OPENROUTER_SITE_URL: z.string().default('https://easygoventure.com'),
+  OPENROUTER_SITE_NAME: z.string().default('EasyGo Venture'),
+
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().default('qwen/qwen3.6-27b'),
   // Reasoning models (e.g. Qwen3) "think" before answering, which burns the token

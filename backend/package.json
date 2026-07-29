@@ -29,6 +29,7 @@
     "seed:demo": "ts-node src/database/seed-demo.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
@@ -49,6 +50,7 @@
     "ioredis": "^5.4.2",
     "mongoose": "^8.9.3",
     "nestjs-pino": "^4.2.0",
+    "openai": "^7.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pino-http": "^10.3.0",

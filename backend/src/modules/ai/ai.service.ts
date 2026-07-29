@@ -476,9 +476,11 @@ export class AIService {
       `3. destination = comma-separated cities ("Dubai, Doha"). destinations[] = [{city, nights, checkIn, checkOut, order}] for each stop.`,
       `4. Multi-city dates: checkOut of city N = checkIn of city N+1. startDate = first city checkIn, endDate = last city checkOut.`,
       `5. travelers = adults + children + infants (total). childAges[] = [age1, age2] as integers. "chd"/"chil" = children.`,
-      `6. markup = margin % as a number (e.g. "15% margin" → 15). Ask once basics are captured.`,
-      `7. isComplete = true ONLY when name AND phone are both known.`,
-      `8. Never put hotel/service info in notes. Always use hotels[] and services[].`,
+      `   CHILD AGE RULE: Children aged 13 and above are counted as ADULTS for pricing, room occupancy, and visa. When childAges are provided, move any child aged ≥13 from children count to adults count. Recalculate travelers accordingly. If pax say "children above 12" without specifying ages, treat all of them as adults.`,
+      `6. NIGHT/DAY RULE: N nights = N+1 days (3 nights = 4 days). When duration is stated in hours or days convert to nights: 96 hours = 3 nights, "4 days" = 3 nights, "5 days" = 4 nights.`,
+      `7. markup = margin % as a number (e.g. "15% margin" → 15). Ask once basics are captured.`,
+      `8. isComplete = true ONLY when name AND phone are both known.`,
+      `9. Never put hotel/service info in notes. Always use hotels[] and services[].`,
       ``,
       // ── Hotel rules ───────────────────────────────────────────────────────
       `HOTEL RULES:`,
@@ -490,17 +492,40 @@ export class AIService {
       `- Mixed occupancy example: 3 pax want 1 single + 1 double at the SAME hotel → two entries: {name:"X", roomType:"Single Room", occupancyType:"SINGLE", paxCount:1, roomCount:1} + {name:"X", roomType:"Double Room", occupancyType:"DOUBLE", paxCount:2, roomCount:1}. Repeat this pattern for EACH hotel option.`,
       `- Meal plan suffix on roomType: BB=Bed & Breakfast, HB=Half Board, FB=Full Board, AI=All-Inclusive, RO=Room Only.`,
       `- Use EXACT names from CATALOG DATA. If catalog has fewer than 2 hotels: use numbered placeholders ("5-Star Hotel A Dubai", "5-Star Hotel B Dubai").`,
+      `- HOTEL APARTMENT vs HOTEL: If traveler explicitly requests hotel apartment / serviced apartment, suggest hotel apartment options. If traveler explicitly says "hotel only" or "not hotel apartment", suggest only hotels. If unspecified for families, ask which they prefer.`,
+      `- ROOM CLARIFICATION: When a group's room count is unclear (e.g. 3 ladies + 3 kids, group of 6, mixed families), ask how many rooms they need BEFORE suggesting options.`,
+      `- SPLIT STAY: If pax request split stay (different hotels), create separate hotel entries per hotel stay with correct nights for each segment. Each segment has its own checkIn/checkOut.`,
       ``,
       // ── Service rules ─────────────────────────────────────────────────────
       `SERVICE RULES:`,
       `- PRIVATE = per-person rate (visa, private transfer, ticket). SHARED = unit cost split by pax (sedan, safari group).`,
       `- Airport transfer = PRIVATE (each traveler). Use CATALOG DATA prices when available.`,
       ``,
+      // ── Business rules ────────────────────────────────────────────────────
+      `BUSINESS RULES:`,
+      ``,
+      `CORPORATE/MEETING TRAVEL: If the purpose of travel is a business meeting, corporate work, or conference, include ONLY: hotel + airport transfer + visa. Do NOT suggest or add any tours, leisure activities, or sightseeing. Add note "Corporate/Meeting — no leisure activities".`,
+      ``,
+      `HONEYMOON/ANNIVERSARY TRAVEL: If pax are honeymooners or celebrating an anniversary, proactively add romantic activities to services[]: Romantic Dhow Cruise Dinner, Couple Spa, Burj Khalifa Sunset Visit. In the reply, inform the operator that these will be presented to the couple as "complimentary" inclusions — the cost will be factored into the package price but disclosed to the agency, not the traveler.`,
+      ``,
+      `30-DAY VISA RULES (only when 30-day visa is mentioned):`,
+      `  • Minimum parent age: 45 years and above to be eligible.`,
+      `  • Children must be minors (below 18 years old).`,
+      `  • Biometrics may be required: additional cost of NGN 433,000 per person + USD 69 per person — subject to confirmation only after the visa is submitted into the system. Always add this note to the visa service entry and flag it in reply.`,
+      ``,
+      `UPSELL RULE: Always suggest relevant add-on activities tailored to the traveler profile to maximize package value. Add suggested activities to services[] with pricingType SHARED:`,
+      `  • Families with KIDS BELOW 12: Legoland Dubai, IMG Worlds of Adventure, Aquaventure Waterpark, KidZania Dubai, Dubai Dolphinarium, Dubai Frame, Global Village (seasonal), Motiongate Dubai.`,
+      `  • ADULTS WITH OLDER CHILDREN (12+): Desert Safari with BBQ, Dubai Aquarium, Burj Khalifa, Global Village, Miracle Garden.`,
+      `  • LEISURE/HOLIDAY group: Desert Safari with BBQ Dinner, Dhow Cruise, City Tour, Burj Khalifa, Dubai Frame, Hot Air Balloon.`,
+      `  • HONEYMOONERS/ANNIVERSARY: Romantic Dhow Cruise Dinner, Helicopter Tour Dubai, Couple Spa, Yacht Charter, Private Beach Dinner — all as "complimentary" (see above).`,
+      `  • LUXURY TRAVELER (Rolls Royce / VIP / premium): Full-day luxury chauffeur with driver-guide for shopping assistance, VIP airport lounge meet-and-greet, Private Helicopter Tour, Butler-service hotel, Luxury Yacht Charter.`,
+      `  • CORPORATE/MEETING: Do NOT add leisure. Only premium lounge airport transfer and meet-and-greet if 5-star is requested.`,
+      ``,
       // ── Catalog data ─────────────────────────────────────────────────────
       catalogContext || '',
       ``,
       // ── Ask priority ─────────────────────────────────────────────────────
-      `ASK PRIORITY (one at a time): traveler name → phone → destination → dates → per-city nights → pax breakdown → child ages → nationality → markup.`,
+      `ASK PRIORITY (one at a time): traveler name → phone → destination → dates → per-city nights → pax breakdown (adults/children) → child ages (REQUIRED when children mentioned — affects pricing) → room count if ambiguous → nationality → markup.`,
       ``,
       // ── Examples ─────────────────────────────────────────────────────────
       `EXAMPLE A — Multi-city, 3 hotel options per city, mixed occupancy (1 single + 1 double):`,
@@ -519,6 +544,18 @@ export class AIService {
       `Input: "How many portals does EasyGo have?"`,
       `{"reply":"I only handle lead capture. Please paste the agency inquiry or describe the traveler's requirements.","extractedData":{},"isComplete":false,"missingFields":[]}`,
       ``,
+      `EXAMPLE E — Children above 12 treated as adults, upsell kid-friendly + leisure activities:`,
+      `Input: "dubai travel package 2 adults + 3 children above 12 yrs, 20-25 aug 2026"`,
+      `{"reply":"Lead logged — 5 adults total (children above 12 count as adults), Dubai 20–25 Aug (5 nights). I've added leisure activities. What is the traveler name and contact?","extractedData":{"destination":"Dubai","adults":5,"children":0,"travelers":5,"startDate":"2026-08-20","endDate":"2026-08-25","destinations":[{"city":"Dubai","nights":5,"order":1}],"hotels":[{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3}],"services":[{"name":"Airport Transfer","pricingType":"PRIVATE"},{"name":"Desert Safari with BBQ Dinner","pricingType":"SHARED"},{"name":"Burj Khalifa At the Top","pricingType":"SHARED"},{"name":"Dubai Aquarium & Underwater Zoo","pricingType":"SHARED"},{"name":"City Tour","pricingType":"SHARED"}]},"isComplete":false,"missingFields":["name","phone"]}`,
+      ``,
+      `EXAMPLE F — Corporate/meeting travel (hotel + transfer + visa only, no tours):`,
+      `Input: "3 travelers single double triple rooms dubai 16-19 aug for meeting"`,
+      `{"reply":"Corporate trip noted — 3 pax, Dubai 16–19 Aug (3N), meeting purpose. Adding hotel options with single/double/triple rooms + airport transfer + visa only (no leisure tours). How many rooms do they need in total?","extractedData":{"destination":"Dubai","adults":3,"travelers":3,"startDate":"2026-08-16","endDate":"2026-08-19","destinations":[{"city":"Dubai","nights":3,"order":1}],"notes":"Corporate/Meeting — no leisure activities","services":[{"name":"Airport Transfer","pricingType":"PRIVATE"},{"name":"UAE Visa","pricingType":"PRIVATE"}],"hotels":[{"city":"Dubai","name":"4-Star Hotel A Dubai","nights":3,"rating":4,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Dubai","name":"4-Star Hotel A Dubai","nights":3,"rating":4,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1},{"city":"Dubai","name":"4-Star Hotel B Dubai","nights":3,"rating":4,"roomType":"Single Room","occupancyType":"SINGLE","paxCount":1,"roomCount":1},{"city":"Dubai","name":"4-Star Hotel B Dubai","nights":3,"rating":4,"roomType":"Double Room","occupancyType":"DOUBLE","paxCount":2,"roomCount":1}]},"isComplete":false,"missingFields":["name","phone","roomCount"]}`,
+      ``,
+      `EXAMPLE G — Honeymooners (complimentary romantic activities):`,
+      `Input: "honeymooners coming to dubai 19-25 august"`,
+      `{"reply":"Wonderful! Honeymoon package queued for Dubai 19–25 Aug (6N). I've added Romantic Dhow Cruise Dinner, Couple Spa, and Helicopter Tour as complimentary inclusions — these will be priced in the package but presented to the couple as complimentary. What are the traveler names and contact?","extractedData":{"destination":"Dubai","adults":2,"travelers":2,"startDate":"2026-08-19","endDate":"2026-08-25","destinations":[{"city":"Dubai","nights":6,"order":1}],"notes":"Honeymoon package — romantic activities presented as complimentary to the couple","hotels":[{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":6,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":1},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":6,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":1},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":6,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":1}],"services":[{"name":"Airport Transfer","pricingType":"PRIVATE"},{"name":"Romantic Dhow Cruise Dinner","pricingType":"SHARED"},{"name":"Couple Spa","pricingType":"SHARED"},{"name":"Helicopter Tour Dubai","pricingType":"SHARED"},{"name":"Burj Khalifa Sunset Visit","pricingType":"SHARED"}]},"isComplete":false,"missingFields":["name","phone"]}`,
+      ``,
       // ── Current state ─────────────────────────────────────────────────────
       `Current extracted data (merge — never overwrite non-null with null):`,
       JSON.stringify(current, null, 2),
@@ -533,7 +570,7 @@ export class AIService {
       { role: 'user', content: dto.message },
     ];
 
-    const raw = await this.provider.chat(messages, { temperature: 0.1, maxTokens: 800, json: true });
+    const raw = await this.provider.chat(messages, { temperature: 0.1, maxTokens: 1400, json: true });
 
     let parsed: LeadIntakeChatResponse;
     try {
@@ -806,6 +843,10 @@ export class AIService {
       'dhow cruise', 'cruise', 'city tour', 'tour', 'skydiving', 'helicopter',
       'yacht', 'aquaventure', 'ferrari world', 'burj khalifa', 'global village',
       'hot air balloon', 'balloon', 'warner bros', 'img worlds',
+      'legoland', 'kidzania', 'dolphinarium', 'motiongate', 'dubai frame',
+      'miracle garden', 'ski dubai', 'dubai mall', 'shopping', 'rolls royce',
+      'luxury car', 'chauffeur', 'spa', 'couple spa', 'private beach',
+      'meet and greet', 'meet & greet', 'vip lounge', 'lounge',
     ];
     // Longest match wins (prevents 'safari' stealing 'desert safari')
     return SERVICE_KW.filter((kw) => lower.includes(kw)).slice(0, 3);

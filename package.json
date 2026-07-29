@@ -2,7 +2,7 @@
   "name": "dmc-crm",
   "version": "0.1.0",
   "private": true,
-  "description": "DMC CRM — B2B Travel Operations CRM (Modular Monolith)",
+  "description": "DMC CRM \u2014 B2B Travel Operations CRM (Modular Monolith)",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=20.0.0",

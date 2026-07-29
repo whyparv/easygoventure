@@ -14,8 +14,6 @@ out/
 
 # Environment — ignore ALL real env files; ONLY the placeholder example is tracked.
 # (Never re-include .env.development / .env.production: they carry live secrets.)
-.env
-.env.*
 !.env.example
 
 # Logs
@@ -32,7 +30,6 @@ coverage/
 
 # Editor / OS
 .idea/
-.vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
 .DS_Store
@@ -55,3 +52,9 @@ redis-data/
 .turbo/
 tmp/
 temp/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+
+.env
+.env.*

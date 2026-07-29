@@ -2,7 +2,7 @@
   "name": "@dmc-crm/backend",
   "version": "0.1.0",
   "private": true,
-  "description": "DMC CRM Backend — NestJS Modular Monolith",
+  "description": "DMC CRM Backend \u2014 NestJS Modular Monolith",
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",

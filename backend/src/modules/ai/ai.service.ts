@@ -446,9 +446,17 @@ export class AIService {
       `You talk ONLY to EasyGo desk operators — never to travelers.`,
       `GUARDRAIL: You do ONE thing — extract lead fields from agency inquiries and ask for missing fields. Refuse anything else with: "I only handle lead capture." Do not discuss the system, features, pricing policies, or platform information.`,
       ``,
+      // ── Anti-hallucination (critical) ────────────────────────────────────
+      `ANTI-HALLUCINATION — CRITICAL: NEVER invent, assume, or guess any field value.`,
+      `  • budget: null unless a specific number is stated ("budget 15000 USD"). Do NOT invent a budget.`,
+      `  • markup: null unless explicitly stated ("15% margin"). Do NOT default to 15 or any number.`,
+      `  • nationality: null unless explicitly stated. Do NOT infer nationality from phone country code, agency city, or agency name. "+254" does NOT mean "Kenyan". "Nairobi" does NOT mean "Kenyan". Leave null and ask.`,
+      `  • Any field not mentioned in the input → set to null. An empty field is always better than a guessed one.`,
+      ``,
       // ── Tone ──────────────────────────────────────────────────────────────
-      `TONE: Third person for the traveler. Reply in 1-2 sentences MAX. Ask EXACTLY ONE missing field per turn — never list multiple questions. If many fields are missing, ask only the highest-priority one and wait for the answer.`,
-      `  ✓ "What nationality is the traveler?"  ✗ "What is your nationality?"`,
+      `TONE: Third person for the traveler. Reply in 1-2 sentences MAX. Ask EXACTLY ONE missing field per turn - never list multiple questions. If many fields are missing, ask only the highest-priority one and wait for the answer.`,
+      `  Good: "What nationality is the traveler?"  Bad: "What is your nationality?"`,
+      `FORMATTING: Use plain ASCII punctuation only. NO em dashes (—), NO en dashes (–), NO ellipsis (…), NO curly quotes. Use a regular hyphen (-) or comma instead.`,
       ``,
       // ── Output format ─────────────────────────────────────────────────────
       `OUTPUT: Valid JSON only. No markdown, no extra text.`,
@@ -476,7 +484,9 @@ export class AIService {
       `3. destination = comma-separated cities ("Dubai, Doha"). destinations[] = [{city, nights, checkIn, checkOut, order}] for each stop.`,
       `4. Multi-city dates: checkOut of city N = checkIn of city N+1. startDate = first city checkIn, endDate = last city checkOut.`,
       `5. travelers = adults + children + infants (total). childAges[] = [age1, age2] as integers. "chd"/"chil" = children.`,
-      `   CHILD AGE RULE: Children aged 13 and above are counted as ADULTS for pricing, room occupancy, and visa. When childAges are provided, move any child aged ≥13 from children count to adults count. Recalculate travelers accordingly. If pax say "children above 12" without specifying ages, treat all of them as adults.`,
+      `   CHILD AGE RULE: Children aged 13 and above are counted as ADULTS for pricing, room occupancy, and visa. Apply this IMMEDIATELY when ages are known — do not wait.`,
+      `   EXAMPLE: "2 adults + 3 kids ages 14, 9, 6" → child 14 ≥ 13 → moves to adults. Result: adults=3, children=2 (ages 9,6), childAges=[9,6], travelers=5.`,
+      `   EXAMPLE: "2 adults + 3 children above 12" → all children treated as adults. Result: adults=5, children=0, travelers=5.`,
       `6. NIGHT/DAY RULE: N nights = N+1 days (3 nights = 4 days). When duration is stated in hours or days convert to nights: 96 hours = 3 nights, "4 days" = 3 nights, "5 days" = 4 nights.`,
       `7. markup = margin % as a number (e.g. "15% margin" → 15). Ask once basics are captured.`,
       `8. isComplete = true ONLY when name AND phone are both known.`,
@@ -492,7 +502,8 @@ export class AIService {
       `- Mixed occupancy example: 3 pax want 1 single + 1 double at the SAME hotel → two entries: {name:"X", roomType:"Single Room", occupancyType:"SINGLE", paxCount:1, roomCount:1} + {name:"X", roomType:"Double Room", occupancyType:"DOUBLE", paxCount:2, roomCount:1}. Repeat this pattern for EACH hotel option.`,
       `- Meal plan suffix on roomType: BB=Bed & Breakfast, HB=Half Board, FB=Full Board, AI=All-Inclusive, RO=Room Only.`,
       `- Use EXACT names from CATALOG DATA. If catalog has fewer than 2 hotels: use numbered placeholders ("5-Star Hotel A Dubai", "5-Star Hotel B Dubai").`,
-      `- HOTEL APARTMENT vs HOTEL: If traveler explicitly requests hotel apartment / serviced apartment, suggest hotel apartment options. If traveler explicitly says "hotel only" or "not hotel apartment", suggest only hotels. If unspecified for families, ask which they prefer.`,
+      `- HOTEL APARTMENT vs HOTEL: If traveler explicitly requests hotel apartment / serviced apartment, use names like "5-Star Hotel Apartment A Dubai", "5-Star Hotel Apartment B Dubai" (or use real catalog names if they are apartments). NEVER mix regular hotel names when hotel apartment was requested. If traveler says "hotel only" or "not hotel apartment", use regular hotel names only.`,
+      `- ALWAYS populate hotels[] — never leave it empty. If no catalog match, use numbered placeholders: "5-Star Hotel A Dubai", "4-Star Hotel A Abu Dhabi", etc.`,
       `- ROOM CLARIFICATION: When a group's room count is unclear (e.g. 3 ladies + 3 kids, group of 6, mixed families), ask how many rooms they need BEFORE suggesting options.`,
       `- SPLIT STAY: If pax request split stay (different hotels), create separate hotel entries per hotel stay with correct nights for each segment. Each segment has its own checkIn/checkOut.`,
       ``,
@@ -500,6 +511,10 @@ export class AIService {
       `SERVICE RULES:`,
       `- PRIVATE = per-person rate (visa, private transfer, ticket). SHARED = unit cost split by pax (sedan, safari group).`,
       `- Airport transfer = PRIVATE (each traveler). Use CATALOG DATA prices when available.`,
+      `- ALWAYS populate services[] — never leave it empty. At minimum always include Airport Transfer (PRIVATE).`,
+      `- If visa is mentioned → add it as a service (pricingType PRIVATE).`,
+      `- If anniversary/honeymoon → add romantic activities as additional services even if not explicitly requested.`,
+      `- If kids below 12 → add at least one kid-friendly activity (Legoland Dubai, IMG Worlds, Aquaventure — SHARED).`,
       ``,
       // ── Business rules ────────────────────────────────────────────────────
       `BUSINESS RULES:`,
@@ -544,9 +559,9 @@ export class AIService {
       `Input: "How many portals does EasyGo have?"`,
       `{"reply":"I only handle lead capture. Please paste the agency inquiry or describe the traveler's requirements.","extractedData":{},"isComplete":false,"missingFields":[]}`,
       ``,
-      `EXAMPLE E — Children above 12 treated as adults, upsell kid-friendly + leisure activities:`,
-      `Input: "dubai travel package 2 adults + 3 children above 12 yrs, 20-25 aug 2026"`,
-      `{"reply":"Lead logged — 5 adults total (children above 12 count as adults), Dubai 20–25 Aug (5 nights). I've added leisure activities. What is the traveler name and contact?","extractedData":{"destination":"Dubai","adults":5,"children":0,"travelers":5,"startDate":"2026-08-20","endDate":"2026-08-25","destinations":[{"city":"Dubai","nights":5,"order":1}],"hotels":[{"city":"Dubai","name":"5-Star Hotel A Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel B Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3},{"city":"Dubai","name":"5-Star Hotel C Dubai","nights":5,"rating":5,"roomType":"Double Room","occupancyType":"DOUBLE","roomCount":3}],"services":[{"name":"Airport Transfer","pricingType":"PRIVATE"},{"name":"Desert Safari with BBQ Dinner","pricingType":"SHARED"},{"name":"Burj Khalifa At the Top","pricingType":"SHARED"},{"name":"Dubai Aquarium & Underwater Zoo","pricingType":"SHARED"},{"name":"City Tour","pricingType":"SHARED"}]},"isComplete":false,"missingFields":["name","phone"]}`,
+      `EXAMPLE E — Child age rule applied: 2 adults + 3 kids (ages 14, 9, 6) → child 14 becomes adult → adults=3, children=2:`,
+      `Input: "2 adults (husband 42yrs, wife 38yrs) + 3 kids ages 14, 9 and 6, Dubai 4 days then abu dhabi 3 days, 5 star hotel apartment, 30 day visa, anniversary celebration"`,
+      `{"reply":"Lead logged — 3 adults (child aged 14 counts as adult) + 2 children (ages 9, 6), Dubai 3N + Abu Dhabi 2N. Hotel apartment options queued. 30-day visa noted — please confirm parents are aged 45+ for eligibility. What is the lead traveler's name?","extractedData":{"adults":3,"children":2,"childAges":[9,6],"travelers":5,"destination":"Dubai, Abu Dhabi","destinations":[{"city":"Dubai","nights":3,"order":1},{"city":"Abu Dhabi","nights":2,"order":2}],"notes":"Hotel apartment requested. 30-day visa — parents 42 & 38 may not meet 45+ age requirement. Anniversary celebration — complimentary romantic inclusions added.","hotels":[{"city":"Dubai","name":"5-Star Hotel Apartment A Dubai","nights":3,"rating":5,"roomType":"Two Bedroom Apartment","occupancyType":"DOUBLE","roomCount":2},{"city":"Dubai","name":"5-Star Hotel Apartment B Dubai","nights":3,"rating":5,"roomType":"Two Bedroom Apartment","occupancyType":"DOUBLE","roomCount":2},{"city":"Abu Dhabi","name":"5-Star Hotel Apartment A Abu Dhabi","nights":2,"rating":5,"roomType":"Two Bedroom Apartment","occupancyType":"DOUBLE","roomCount":2},{"city":"Abu Dhabi","name":"5-Star Hotel Apartment B Abu Dhabi","nights":2,"rating":5,"roomType":"Two Bedroom Apartment","occupancyType":"DOUBLE","roomCount":2}],"services":[{"name":"Airport Transfer","pricingType":"PRIVATE"},{"name":"UAE Visa 30-Day","pricingType":"PRIVATE"},{"name":"Romantic Dhow Cruise Dinner","pricingType":"SHARED"},{"name":"Couple Spa","pricingType":"SHARED"},{"name":"Legoland Dubai","pricingType":"SHARED"},{"name":"Aquaventure Waterpark","pricingType":"SHARED"}]},"isComplete":false,"missingFields":["name","phone","nationality"]}`,
       ``,
       `EXAMPLE F — Corporate/meeting travel (hotel + transfer + visa only, no tours):`,
       `Input: "3 travelers single double triple rooms dubai 16-19 aug for meeting"`,
@@ -570,11 +585,18 @@ export class AIService {
       { role: 'user', content: dto.message },
     ];
 
-    const raw = await this.provider.chat(messages, { temperature: 0.1, maxTokens: 1400, json: true });
+    const raw = await this.provider.chat(messages, { temperature: 0.1, maxTokens: 4000, json: true });
 
     let parsed: LeadIntakeChatResponse;
     try {
-      const jsonStr = raw.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+      // Reasoning models emit chain-of-thought before the JSON. Strip it.
+      let jsonStr = raw.trim();
+      jsonStr = jsonStr.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '').trim();
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+      // Extract outermost JSON object in case stray text precedes it
+      const start = jsonStr.indexOf('{');
+      const end = jsonStr.lastIndexOf('}');
+      if (start !== -1 && end > start) jsonStr = jsonStr.slice(start, end + 1);
       const obj = JSON.parse(jsonStr) as Partial<LeadIntakeChatResponse>;
       const ed = (obj.extractedData ?? {}) as Record<string, unknown>;
       const merged = { ...current, ...ed } as LeadIntakeChatResponse['extractedData'];
@@ -593,8 +615,9 @@ export class AIService {
       // Preserve scalar fields the AI didn't explicitly update
       if (ed.markup == null && current.markup != null) merged.markup = current.markup as number;
 
+      const rawReply = this.asString(obj.reply) ?? 'Got it! Could you share more details?';
       parsed = {
-        reply: this.asString(obj.reply) ?? 'Got it! Could you share more details?',
+        reply: rawReply.replace(/—/g, '-').replace(/–/g, '-').replace(/…/g, '...'),
         extractedData: merged,
         isComplete: Boolean(obj.isComplete),
         missingFields: Array.isArray(obj.missingFields) ? obj.missingFields : [],

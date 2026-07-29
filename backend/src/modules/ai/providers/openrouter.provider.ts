@@ -75,7 +75,7 @@ export class OpenRouterProvider implements AIProvider {
 
       const text = content.trim();
       if (options.json) {
-        return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        return this.extractJson(text);
       }
       return text;
     } catch (error) {
@@ -142,6 +142,24 @@ export class OpenRouterProvider implements AIProvider {
       this.logger.error(`OpenRouter chatWithTools failed: ${message}`);
       throw new BusinessException(`AI provider error: ${message}`, 'AI_PROVIDER_ERROR');
     }
+  }
+
+  /**
+   * Reasoning models (e.g. Nemotron, DeepSeek-R1) emit a chain-of-thought block
+   * before the actual answer. Strip it and return only the JSON object.
+   */
+  private extractJson(text: string): string {
+    // Remove <think>...</think> or <thinking>...</thinking> blocks (Nemotron, QwQ, etc.)
+    let clean = text.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '').trim();
+    // Remove markdown fences
+    clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    // Find the outermost JSON object (first { to matching last })
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      return clean.slice(start, end + 1).trim();
+    }
+    return clean;
   }
 
   private injectJsonInstruction(messages: ChatMessage[]): ChatMessage[] {

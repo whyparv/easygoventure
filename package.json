@@ -2,7 +2,7 @@
   "name": "dmc-crm",
   "version": "0.1.0",
   "private": true,
-  "description": "DMC CRM — B2B Travel Operations CRM (Modular Monolith)",
+  "description": "DMC CRM \u2014 B2B Travel Operations CRM (Modular Monolith)",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=20.0.0",
@@ -14,8 +14,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "build": "npm run build -w backend && npm run build -w frontend",
+    "dev": "node init && concurrently -n backend,frontend -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "node init && npm run build -w backend && npm run build -w frontend",
     "lint": "npm run lint -w backend && npm run lint -w frontend",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
